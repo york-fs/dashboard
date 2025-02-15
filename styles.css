@@ -1,0 +1,128 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #1a1a1a;
+    color: #ffffff;
+}
+
+.dashboard-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* Status Bar Styling */
+.status-bar {
+    background-color: #2d2d2d;
+    padding: 10px;
+    display: flex;
+    gap: 20px;
+}
+
+.indicator {
+    padding: 8px 16px;
+    border-radius: 4px;
+    background-color: #333;
+    position: relative;
+}
+
+.indicator.active {
+    background-color: #4CAF50;
+}
+
+.indicator.error {
+    background-color: #f44336;
+}
+
+/* Main Content Area */
+.main-content {
+    display: flex;
+    flex: 1;
+}
+
+.content-area {
+    flex: 1;
+    padding: 20px;
+    background-color: #2d2d2d;
+    margin: 10px;
+}
+
+/* Right Panel */
+.right-panel {
+    width: 250px;
+    background-color: #2d2d2d;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.navigation {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.nav-button {
+    padding: 10px;
+    background-color: #404040;
+    border: none;
+    color: white;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.nav-button:hover {
+    background-color: #505050;
+}
+
+.nav-button.active {
+    background-color: #4CAF50;
+}
+
+/* Fault Panel */
+.fault-panel {
+    flex: 1;
+}
+
+.fault {
+    margin: 5px 0;
+    padding: 8px;
+    border-radius: 4px;
+    background-color: #404040;
+}
+
+.fault.active {
+    background-color: #f44336;
+}
+
+/* Serial Controls */
+.serial-controls {
+    padding: 10px;
+    background-color: #2d2d2d;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+#connect-serial {
+    padding: 8px 16px;
+    background-color: #4CAF50;
+    border: none;
+    color: white;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+#connect-serial:hover {
+    background-color: #45a049;
+}
+
+#connection-status {
+    color: #888;
+}

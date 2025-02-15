@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashcam - York Formula Student</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="status-bar">
+            <div class="indicator" id="tsal-status">TSAL</div>
+            <div class="indicator" id="imd-status">IMD</div>
+            <div class="indicator" id="shutdown-status">SHUTDOWN</div>
+        </div>
+
+        <div class="main-content">
+            <div class="content-area" id="main-view">
+                <!-- content -->
+            </div>
+
+            <!-- nav and fault panel -->
+            <div class="right-panel">
+                <nav class="navigation">
+                    <button class="nav-button" data-view="dashboard">Dashboard</button>
+                    <button class="nav-button" data-view="battery">Battery</button>
+                    <button class="nav-button" data-view="canbus">CANBus</button>
+                    <button class="nav-button" data-view="apps">APPS</button>
+                </nav>
+
+                <div class="fault-panel">
+                    <h3>System Faults</h3>
+                    <div id="fault-list">
+                        <!-- whatever ill just do this later -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- serial controls -->
+    <div class="serial-controls">
+        <button id="connect-serial">Connect Serial</button>
+        <span id="connection-status">Disconnected</span>
+    </div>
+
+    <script src="serial.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
