@@ -11,9 +11,13 @@ class SerialConnection {
     async connect() {
         try {
             // Request port and open it
-            this.port = await navigator.serial.requestPort();
-            await this.port.open({ baudRate: 115200 });
-            
+            this.port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x2341, usbProductId: 0x8036 }] }); // Add filters if needed
+            await this.port.open({ baudRate: 9600 });
+            document.getElementById('connection-status').textContent = 'Connected to COM port';
+
+            // Modify the port name to the com0com port
+            this.port.portName = "CNCA0"; // Or "COM3" or whatever the port shows up as
+
             this.isConnected = true;
             this.updateConnectionStatus(true);
             
