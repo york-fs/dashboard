@@ -1,3 +1,4 @@
+/* basic reset */
 * {
     margin: 0;
     padding: 0;
@@ -10,13 +11,14 @@ body {
     color: #ffffff;
 }
 
+/* main layout */
 .dashboard-container {
     display: flex;
     flex-direction: column;
     height: 100vh;
 }
 
-/* Status Bar Styling */
+/* status bar */
 .status-bar {
     background-color: #2d2d2d;
     padding: 10px;
@@ -24,6 +26,7 @@ body {
     gap: 20px;
 }
 
+/* indicators */
 .indicator {
     padding: 8px 16px;
     border-radius: 4px;
@@ -39,7 +42,7 @@ body {
     background-color: #f44336;
 }
 
-/* Main Content Area */
+/* main area */
 .main-content {
     display: flex;
     flex: 1;
@@ -52,7 +55,7 @@ body {
     margin: 10px;
 }
 
-/* Left Panel */
+/* left side panel */
 .left-panel {
     width: 250px;
     background-color: #2d2d2d;
@@ -63,6 +66,7 @@ body {
     order: -1; /* This ensures the panel appears before the content area */
 }
 
+/* navigation */
 .navigation {
     display: flex;
     flex-direction: column;
@@ -86,7 +90,7 @@ body {
     background-color: #4CAF50;
 }
 
-/* Fault Panel */
+/* fault display */
 .fault-panel {
     flex: 1;
 }
@@ -102,7 +106,7 @@ body {
     background-color: #f44336;
 }
 
-/* Serial Controls */
+/* connection controls */
 .serial-controls {
     padding: 10px;
     background-color: #2d2d2d;
@@ -128,7 +132,7 @@ body {
     color: #888;
 }
 
-/* Dashboard View */
+/* dashboard display */
 .metrics-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -154,7 +158,7 @@ body {
     font-weight: bold;
 }
 
-/* Terminal Styling */
+/* terminal display */
 .terminal {
     background-color: #1a1a1a;
     border-radius: 8px;
@@ -190,7 +194,20 @@ body {
     border-radius: 4px;
 }
 
-/* Battery View */
+.terminal-input button {
+    padding: 8px 16px;
+    background-color: #4CAF50;
+    border: none;
+    color: white;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.terminal-input button:hover {
+    background-color: #45a049;
+}
+
+/* battery info */
 .battery-stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -228,7 +245,7 @@ body {
     color: #888;
 }
 
-/* APPS View */
+/* apps sensors */
 .apps-data {
     margin-top: 20px;
 }
@@ -267,7 +284,7 @@ body {
     border-radius: 8px;
 }
 
-/* Scrollbar Styling */
+/* custom scrollbar */
 ::-webkit-scrollbar {
     width: 8px;
 }
