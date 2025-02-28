@@ -27,6 +27,7 @@
                     <button class="nav-button" data-view="battery">Battery</button>
                     <button class="nav-button" data-view="canbus">CANBus</button>
                     <button class="nav-button" data-view="apps">APPS</button>
+                    <button class="nav-button" data-view="telemetry">Telemetry</button>
                 </nav>
 
                 <div class="fault-panel">
@@ -42,10 +43,12 @@
     <!-- connection controls -->
     <div class="serial-controls">
         <button id="connect-serial">Connect Serial</button>
+        <button id="connect-telemetry">Connect Telemetry</button>
         <span id="connection-status">Disconnected</span>
     </div>
 
     <script src="serial.js"></script>
+    <script src="telemetry.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

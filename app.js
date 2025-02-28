@@ -6,7 +6,8 @@ class DashboardApp {
             dashboard: this.createDashboardView.bind(this),
             battery: this.createBatteryView.bind(this),
             canbus: this.createCANBusView.bind(this),
-            apps: this.createAPPSView.bind(this)
+            apps: this.createAPPSView.bind(this),
+            telemetry: this.createTelemetryView.bind(this)
         };
         
         // cache setup
@@ -15,7 +16,12 @@ class DashboardApp {
             metrics: null,
             battery: null,
             apps: null,
-            can: []  // store can messages
+            can: [],  // store can messages
+            telemetry: {
+                messages: [],
+                status: null,
+                parameters: {}
+            }
         };
         
         this.setupEventListeners();
@@ -49,6 +55,20 @@ class DashboardApp {
             const unsubscribe = serialConnection.subscribe(type, callback);
             this.unsubscribers.set(type, unsubscribe);
         });
+        
+        // Subscribe to telemetry data if telemetryRadio exists
+        if (window.telemetryRadio) {
+            const telemetrySubscriptions = [
+                ['telemetry', this.updateTelemetryData.bind(this)],
+                ['status', this.updateTelemetryStatus.bind(this)],
+                ['raw', (data) => this.updateTelemetryMonitor(data)]
+            ];
+            
+            telemetrySubscriptions.forEach(([type, callback]) => {
+                const unsubscribe = telemetryRadio.subscribe(type, callback);
+                this.unsubscribers.set('telemetry_' + type, unsubscribe);
+            });
+        }
     }
 
     // clean up subscriptions and cache when needed
@@ -60,7 +80,12 @@ class DashboardApp {
             metrics: null,
             battery: null,
             apps: null,
-            can: []
+            can: [],
+            telemetry: {
+                messages: [],
+                status: null,
+                parameters: {}
+            }
         };
     }
 
@@ -118,6 +143,22 @@ class DashboardApp {
                     });
                     output.scrollTop = output.scrollHeight;
                 }
+                break;
+            case 'telemetry':
+                // Restore telemetry data
+                const telemetryOutput = document.getElementById('telemetry-output');
+                if (telemetryOutput && this.latestData.telemetry.messages.length > 0) {
+                    telemetryOutput.innerHTML = '';
+                    this.latestData.telemetry.messages.forEach(message => {
+                        const messageElement = document.createElement('div');
+                        messageElement.textContent = message;
+                        telemetryOutput.appendChild(messageElement);
+                    });
+                    telemetryOutput.scrollTop = telemetryOutput.scrollHeight;
+                }
+                
+                // Update parameters table if we have parameters
+                this.updateTelemetryParameters(this.latestData.telemetry.parameters);
                 break;
         }
     }
@@ -234,6 +275,101 @@ class DashboardApp {
         `;
         return view;
     }
+    
+    createTelemetryView() {
+        const view = document.createElement('div');
+        view.className = 'telemetry-view';
+        view.innerHTML = `
+            <h2>Telemetry Radio Configuration</h2>
+            <div class="telemetry-controls">
+                <div class="radio-info">
+                    <div>Signal Strength: <span id="rssi-value">-- dBm</span></div>
+                    <div>Radio Status: <span id="radio-status">--</span></div>
+                </div>
+                
+                <div class="radio-config">
+                    <h3>Radio Parameters</h3>
+                    <table class="param-table" id="radio-params">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Value</th>
+                                <th>Description</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Parameters will be populated here -->
+                        </tbody>
+                    </table>
+                    
+                    <div class="button-row">
+                        <button id="refresh-params">Refresh Parameters</button>
+                        <button id="enter-command-mode">Enter Command Mode</button>
+                        <button id="exit-command-mode">Exit Command Mode</button>
+                    </div>
+                </div>
+                
+                <div class="telemetry-terminal">
+                    <h3>Telemetry Monitor</h3>
+                    <div class="terminal">
+                        <div id="telemetry-output" class="terminal-output"></div>
+                        <div class="terminal-input">
+                            <input type="text" id="telemetry-command" placeholder="Enter AT command...">
+                            <button id="send-telemetry-command">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Set up event listeners for the telemetry view
+        setTimeout(() => {
+            const sendButton = document.getElementById('send-telemetry-command');
+            const commandInput = document.getElementById('telemetry-command');
+            const refreshButton = document.getElementById('refresh-params');
+            const enterCmdButton = document.getElementById('enter-command-mode');
+            const exitCmdButton = document.getElementById('exit-command-mode');
+
+            if (sendButton && commandInput) {
+                // Add click event for the send button
+                sendButton.addEventListener('click', () => {
+                    if (commandInput.value.trim()) {
+                        telemetryRadio.sendATCommand(commandInput.value);
+                        commandInput.value = '';
+                    }
+                });
+
+                // Add enter key support for the input
+                commandInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && commandInput.value.trim()) {
+                        telemetryRadio.sendATCommand(commandInput.value);
+                        commandInput.value = '';
+                    }
+                });
+            }
+            
+            if (refreshButton) {
+                refreshButton.addEventListener('click', () => {
+                    telemetryRadio.getRadioParameters();
+                });
+            }
+            
+            if (enterCmdButton) {
+                enterCmdButton.addEventListener('click', () => {
+                    telemetryRadio.sendATCommand('+++', true);
+                });
+            }
+            
+            if (exitCmdButton) {
+                exitCmdButton.addEventListener('click', () => {
+                    telemetryRadio.sendATCommand('O');
+                });
+            }
+        }, 0);
+
+        return view;
+    }
 
     // data update methods
     updateDashboardMetrics(data) {
@@ -301,6 +437,118 @@ class DashboardApp {
             output.appendChild(messageElement);
             output.scrollTop = output.scrollHeight;
         }
+    }
+    
+    // Update telemetry data when received
+    updateTelemetryData(data) {
+        // Handle structured telemetry data
+        if (typeof data === 'object') {
+            // Store in latest data cache
+            if (data.type === 'status') {
+                this.latestData.telemetry.status = data;
+                
+                // Update RSSI if available
+                if (data.rssi) {
+                    const rssiElement = document.getElementById('rssi-value');
+                    if (rssiElement) {
+                        rssiElement.textContent = `${data.rssi} dBm`;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Update telemetry monitor with raw data
+    updateTelemetryMonitor(message) {
+        // Store message in cache (keep last 1000 messages)
+        this.latestData.telemetry.messages.push(message);
+        if (this.latestData.telemetry.messages.length > 1000) {
+            this.latestData.telemetry.messages.shift();
+        }
+
+        // Update the telemetry output if visible
+        const output = document.getElementById('telemetry-output');
+        if (output) {
+            const messageElement = document.createElement('div');
+            messageElement.textContent = message;
+            output.appendChild(messageElement);
+            output.scrollTop = output.scrollHeight;
+        }
+    }
+    
+    // Update telemetry status (radio status, parameters, etc)
+    updateTelemetryStatus(statusData) {
+        if (statusData.type === 'rssi' && statusData.data) {
+            const rssiElement = document.getElementById('rssi-value');
+            if (rssiElement) {
+                rssiElement.textContent = `${statusData.data} dBm`;
+            }
+        }
+        else if (statusData.type === 'parameters') {
+            this.updateTelemetryParameters(statusData.parameters);
+        }
+        else if (statusData.type === 'command_response') {
+            this.updateRadioStatus(statusData.data);
+        }
+    }
+    
+    // Update the radio status display
+    updateRadioStatus(status) {
+        const statusElement = document.getElementById('radio-status');
+        if (statusElement) {
+            if (status.includes('OK')) {
+                statusElement.textContent = 'Command Mode';
+                statusElement.style.color = '#4CAF50';
+            } else if (status.includes('ERROR')) {
+                statusElement.textContent = 'Error';
+                statusElement.style.color = '#F44336';
+            } else if (status.includes('EXIT')) {
+                statusElement.textContent = 'Data Mode';
+                statusElement.style.color = '#2196F3';
+            }
+        }
+    }
+    
+    // Update telemetry parameters table
+    updateTelemetryParameters(parameters) {
+        // Store in cache
+        this.latestData.telemetry.parameters = parameters;
+        
+        // Update the parameters table
+        const tbody = document.querySelector('#radio-params tbody');
+        if (!tbody) return;
+        
+        // Clear existing rows
+        tbody.innerHTML = '';
+        
+        // Add rows for each parameter
+        for (const [param, value] of Object.entries(parameters)) {
+            const description = telemetryRadio.getParameterDescription(param);
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>S${param}</td>
+                <td>${value}</td>
+                <td>${description}</td>
+                <td>
+                    <button class="edit-param" data-param="${param}">Edit</button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        }
+        
+        // Add click handlers for edit buttons
+        document.querySelectorAll('.edit-param').forEach(button => {
+            button.addEventListener('click', () => {
+                const param = button.dataset.param;
+                const currentValue = parameters[param];
+                const newValue = prompt(`Enter new value for ${telemetryRadio.getParameterDescription(param)}:`, currentValue);
+                
+                if (newValue !== null && newValue !== '') {
+                    telemetryRadio.setRadioParameter(param, newValue);
+                }
+            });
+        });
     }
 }
 
