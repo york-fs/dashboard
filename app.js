@@ -441,20 +441,57 @@ class DashboardApp {
     
     // Update telemetry data when received
     updateTelemetryData(data) {
-        // Handle structured telemetry data
-        if (typeof data === 'object') {
-            // Store in latest data cache
-            if (data.type === 'status') {
-                this.latestData.telemetry.status = data;
-                
-                // Update RSSI if available
-                if (data.rssi) {
-                    const rssiElement = document.getElementById('rssi-value');
-                    if (rssiElement) {
-                        rssiElement.textContent = `${data.rssi} dBm`;
-                    }
-                }
+        if (!data) return;
+
+        // Store the full data object in latest data cache
+        if (data.type === 'json') {
+            this.latestData.telemetry.messages.push({
+                timestamp: data.timestamp,
+                type: 'json',
+                content: JSON.stringify(data.data, null, 2)
+            });
+        } else if (data.type === 'raw') {
+            this.latestData.telemetry.messages.push({
+                timestamp: data.timestamp,
+                type: 'raw',
+                content: data.data
+            });
+        }
+
+        // Trim message history to last 1000
+        if (this.latestData.telemetry.messages.length > 1000) {
+            this.latestData.telemetry.messages = 
+                this.latestData.telemetry.messages.slice(-1000);
+        }
+
+        // Update the telemetry output if visible
+        const output = document.getElementById('telemetry-output');
+        if (output) {
+            // Clear old content if too many messages
+            if (output.childNodes.length > 1000) {
+                output.innerHTML = '';
             }
+
+            const messageElement = document.createElement('div');
+            messageElement.className = `telemetry-message ${data.type}`;
+            
+            // Format timestamp for display
+            const timestamp = new Date(data.timestamp).toLocaleTimeString();
+            
+            if (data.type === 'json') {
+                messageElement.innerHTML = `
+                    <span class="timestamp">${timestamp}</span>
+                    <pre class="json">${JSON.stringify(data.data, null, 2)}</pre>
+                `;
+            } else {
+                messageElement.innerHTML = `
+                    <span class="timestamp">${timestamp}</span>
+                    <span class="content">${data.data}</span>
+                `;
+            }
+            
+            output.appendChild(messageElement);
+            output.scrollTop = output.scrollHeight;
         }
     }
     

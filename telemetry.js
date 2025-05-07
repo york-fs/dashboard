@@ -12,11 +12,18 @@ class TelemetryRadio {
         this.readLoopActive = false;
         this.connectionTimeout = null;
         this.radioParameters = {}; // store radio parameters
+
+        // mavlink specific properties
+        this.mavlinkEnabled = false;
+        this.mavlinkVersion = 2;
+        this.systemId = 1;
+        this.componentId = 1;
         
         this.subscribers = {
             telemetry: new Set(),
             status: new Set(),
-            raw: new Set()
+            raw: new Set(),
+            mavlink: new Set(),
         };
         
         // initialize listeners for button
@@ -229,46 +236,52 @@ class TelemetryRadio {
             console.log('Raw telemetry data received:', data);
         }
         
-        // notify raw data subscribers
-        this.notifySubscribers('raw', data);
+        // Always notify raw data subscribers first
+        this.notifySubscribers('raw', {
+            timestamp: new Date().toISOString(),
+            data: data
+        });
         
-        // check for at command responses
+        // Process the data based on its content
         if (data.includes('OK') || data.includes('ERROR')) {
-            // this is likely a response to an at command
+            console.log('Command response received:', data);
             this.notifySubscribers('status', {
                 type: 'command_response',
+                timestamp: new Date().toISOString(),
                 data: data
             });
             
-            // update radio parameters if this is a parameter response
             if (data.includes('S')) {
                 this.parseParameterResponse(data);
             }
         } else if (data.includes('RSSI:')) {
-            // this is an rssi report
+            const rssi = this.parseRSSI(data);
+            console.log('RSSI update:', rssi);
             this.notifySubscribers('status', {
                 type: 'rssi',
-                data: this.parseRSSI(data)
+                timestamp: new Date().toISOString(),
+                data: rssi
             });
         } else {
-            // this is likely telemetry data
             try {
-                // try to parse as json
+                // Attempt to parse as JSON first
                 const parsedData = JSON.parse(data);
-                this.notifySubscribers('telemetry', parsedData);
-            } catch (e) {
-                // not json, could be binary data or other format
-                // just notify with the raw data
+                console.log('Parsed telemetry data:', parsedData);
                 this.notifySubscribers('telemetry', {
-                    type: 'unknown',
-                    rawData: data
+                    type: 'json',
+                    timestamp: new Date().toISOString(),
+                    data: parsedData
+                });
+            } catch (e) {
+                // If not JSON, send as raw telemetry data
+                console.log('Raw telemetry data:', data);
+                this.notifySubscribers('telemetry', {
+                    type: 'raw',
+                    timestamp: new Date().toISOString(),
+                    data: data,
+                    encoding: 'utf-8'
                 });
             }
-        }
-        
-        // update dashboard if needed
-        if (window.dashboardApp) {
-            window.dashboardApp.updateTelemetryData(data);
         }
     }
     

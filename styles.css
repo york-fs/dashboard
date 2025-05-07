@@ -17,7 +17,7 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    max-height: 100vh; /* Ensure container doesn't exceed viewport height */
+    max-height: 100vh;
 }
 
 /* status bar */
@@ -58,7 +58,7 @@ body {
     display: flex;
     flex: 1;
     background-color: #000000;
-    overflow: hidden; /* Prevent overflow */
+    overflow: hidden;
 }
 
 .content-area {
@@ -67,8 +67,8 @@ body {
     background-color: #000000;
     margin: 10px;
     border-radius: 8px;
-    overflow-y: auto; /* Make content area scrollable */
-    max-height: calc(100vh - 120px); /* Adjust height to ensure buttons are visible */
+    overflow-y: auto;
+    max-height: calc(100vh - 120px);
 }
 
 /* left side panel */
@@ -79,9 +79,9 @@ body {
     display: flex;
     flex-direction: column;
     gap: 24px;
-    order: -1; /* This ensures the panel appears before the content area */
+    order: -1;
     border-right: 1px solid #232323;
-    overflow-y: auto; /* Make panel scrollable if needed */
+    overflow-y: auto;
 }
 
 /* navigation */
@@ -116,8 +116,8 @@ body {
 /* fault display */
 .fault-panel {
     flex: 1;
-    min-height: 0; /* Allow panel to shrink */
-    overflow-y: auto; /* Add scrolling to fault panel if needed */
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .fault-panel h3 {
@@ -148,9 +148,9 @@ body {
     gap: 12px;
     align-items: center;
     border-top: 1px solid #232323;
-    position: sticky; /* Make the control bar sticky */
+    position: sticky;
     bottom: 0;
-    z-index: 10; /* Ensure it's above other elements */
+    z-index: 10;
 }
 
 #connect-serial, #connect-telemetry {
@@ -162,7 +162,7 @@ body {
     border-radius: 4px;
     transition: all 0.3s ease;
     font-weight: 500;
-    white-space: nowrap; /* Prevent button text from wrapping */
+    white-space: nowrap;
 }
 
 #connect-serial:hover, #connect-telemetry:hover {
@@ -496,6 +496,43 @@ body {
     border-color: #FFC799;
 }
 
+/* telemetry message styles */
+.telemetry-message {
+    padding: 4px 8px;
+    margin: 2px 0;
+    border-left: 3px solid transparent;
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.telemetry-message.json {
+    border-left-color: #4CAF50;
+    background-color: rgba(76, 175, 80, 0.1);
+}
+
+.telemetry-message.raw {
+    border-left-color: #2196F3;
+    background-color: rgba(33, 150, 243, 0.1);
+}
+
+.telemetry-message .timestamp {
+    color: #888;
+    font-size: 0.9em;
+    margin-right: 8px;
+}
+
+.telemetry-message .json {
+    color: #4CAF50;
+    margin: 4px 0;
+    padding: 4px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    white-space: pre-wrap;
+}
+
+.telemetry-message .content {
+    color: #2196F3;
+}
+
 /* custom scrollbar */
 ::-webkit-scrollbar {
     width: 8px;
@@ -525,11 +562,11 @@ body {
         order: 0;
         border-right: none;
         border-bottom: 1px solid #232323;
-        max-height: 40vh; /* Limit height on mobile */
+        max-height: 40vh;
     }
     
     .content-area {
-        max-height: calc(60vh - 90px); /* Adjust height for mobile view */
+        max-height: calc(60vh - 90px);
     }
     
     .navigation {

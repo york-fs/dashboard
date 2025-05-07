@@ -36,6 +36,12 @@ For testing without hardware:
 - Click "Connect Serial" to start the simulation
 - Random test data will be generated for all views
 
+## Documentation
+
+For more detailed documentation on project setup (like Protocol Buffer generation), specific features, and architecture, please refer to the files in the `/docs` directory. 
+
+Specifically, for Protocol Buffer setup, see [`docs/protobuf_setup.md`](docs/protobuf_setup.md).
+
 ## Data Format
 
 The dashboard expects JSON-formatted messages through the serial connection:
