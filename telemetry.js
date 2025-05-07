@@ -395,7 +395,7 @@ class TelemetryRadio {
                             type: 'TelemetryPacket', 
                             packetType: telemetryPacket.getType(), 
                             timestamp: telemetryPacket.getTimestampMs() || new Date().toISOString(), 
-                            data: telemetryPacket.toObject(), 
+                            data: telemetryPacket, // pass the protobuf object
                             length: justReadLength
                         });
                         processedAtLeastOneMessage = true; 
