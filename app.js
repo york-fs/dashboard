@@ -1,5 +1,13 @@
+// Assuming vehicle_data_pb.js is loaded globally, making proto.yorkfs.dashboard available
+// If using modules, you would import: import { TelemetryPacket } from './generated-protos/vehicle_data_pb.js';
+const TelemetryPacketDataType = proto.yorkfs.dashboard.TelemetryPacket.DataType;
+const APPSStateEnum = proto.yorkfs.dashboard.APPSData.APPSState; // For easy access to APPSState enum names
+const BMSShutdownReasonEnum = proto.yorkfs.dashboard.BMSData.ShutdownReason; // For BMS ShutdownReason enum names
+const InverterFaultCodeEnum = proto.yorkfs.dashboard.InverterData.FaultCode; // For Inverter FaultCode enum names
+
 class DashboardApp {
     constructor() {
+        this.debugMode = true; // Assuming you want a debug mode flag
         // view setup
         this.currentView = 'dashboard';
         this.views = {
@@ -385,41 +393,134 @@ class DashboardApp {
         }
     }
 
-    updateBatteryStatus(data) {
-        this.latestData.battery = data;
-        if (data.totalVoltage) {
-            document.getElementById('total-voltage').textContent = `${data.totalVoltage.toFixed(1)}V`;
+    updateBatteryStatus(bmsDataPb) { // bmsDataPb is the .toObject() version of proto.yorkfs.dashboard.BMSData
+        this.latestData.battery = bmsDataPb; // Cache the raw protobuf-derived object
+
+        let calculatedTotalVoltage = 0;
+        const cellsDataForTable = []; // To store { voltage, temp, id }
+        let allTemperatures = []; // To calculate average pack temp
+
+        if (bmsDataPb.segmentsList && bmsDataPb.segmentsList.length > 0) {
+            bmsDataPb.segmentsList.forEach((segment, segmentIndex) => {
+                const segmentCellVoltages = segment.cellVoltagesList || [];
+                const segmentTemperatures = segment.temperaturesList || [];
+
+                segmentCellVoltages.forEach((voltage, localCellIndex) => {
+                    calculatedTotalVoltage += voltage;
+                    cellsDataForTable.push({
+                        id: `S${segmentIndex + 1}-C${localCellIndex + 1}`,
+                        voltage: voltage,
+                        temp: segmentTemperatures[localCellIndex] 
+                    });
+                });
+                allTemperatures.push(...segmentTemperatures);
+            });
         }
-        if (data.soc) {
-            document.getElementById('soc').textContent = `${data.soc.toFixed(1)}%`;
+
+        const totalVoltageElement = document.getElementById('total-voltage');
+        if (totalVoltageElement) {
+            totalVoltageElement.textContent = `${calculatedTotalVoltage.toFixed(1)}V`;
         }
-        if (data.packTemp) {
-            document.getElementById('pack-temp').textContent = `${data.packTemp.toFixed(1)}°C`;
+
+        const socElement = document.getElementById('soc');
+        if (socElement) {
+            socElement.textContent = `--%`; // SoC not directly available from current BMSData protobuf
         }
-        if (data.cellVoltages) {
-            const tbody = document.querySelector('#voltage-table tbody');
-            if (tbody) {
-                tbody.innerHTML = data.cellVoltages.map((cell, index) => `
-                    <tr>
-                        <td>Cell ${index + 1}</td>
-                        <td>${cell.voltage.toFixed(3)}V</td>
-                        <td>${cell.temp.toFixed(1)}°C</td>
-                    </tr>
-                `).join('');
+
+        const packTempElement = document.getElementById('pack-temp');
+        if (packTempElement) {
+            if (allTemperatures.length > 0) {
+                const validTemperatures = allTemperatures.filter(t => t !== undefined && t !== null);
+                if (validTemperatures.length > 0) {
+                    const avgTemp = validTemperatures.reduce((sum, temp) => sum + temp, 0) / validTemperatures.length;
+                    packTempElement.textContent = `${avgTemp.toFixed(1)}°C`;
+                } else {
+                    packTempElement.textContent = `--°C`;    
+                }
+            } else {
+                packTempElement.textContent = `--°C`;
             }
+        }
+
+        const tbody = document.querySelector('#voltage-table tbody');
+        if (tbody) {
+            tbody.innerHTML = cellsDataForTable.map(cell => `
+                <tr>
+                    <td>${cell.id}</td>
+                    <td>${cell.voltage !== undefined ? cell.voltage.toFixed(3) : '--'}V</td>
+                    <td>${cell.temp !== undefined ? cell.temp.toFixed(1) : '--'}°C</td>
+                </tr>
+            `).join('');
+        }
+        
+        // Display Shutdown Status and Reason
+        const shutdownActivatedEl = document.getElementById('bms-shutdown-activated');
+        if (shutdownActivatedEl) {
+            shutdownActivatedEl.textContent = bmsDataPb.shutdownActivated ? 'YES' : 'NO';
+            shutdownActivatedEl.className = bmsDataPb.shutdownActivated ? 'status-active' : 'status-inactive';
+        }
+        const shutdownReasonEl = document.getElementById('bms-shutdown-reason');
+        if (shutdownReasonEl) {
+            if (bmsDataPb.shutdownActivated && bmsDataPb.shutdownReason !== undefined) {
+                const reasonName = Object.keys(BMSShutdownReasonEnum).find(key => BMSShutdownReasonEnum[key] === bmsDataPb.shutdownReason);
+                shutdownReasonEl.textContent = reasonName ? reasonName.replace(/^SHUTDOWN_REASON_/, '') : 'UNKNOWN';
+            } else {
+                shutdownReasonEl.textContent = 'N/A';
+            }
+        }
+
+        // Display LVS Rail, Positive Current, Negative Current
+        const lvsRailEl = document.getElementById('bms-lvs-rail');
+        if (lvsRailEl && bmsDataPb.measuredLvs12vRail !== undefined) {
+            lvsRailEl.textContent = `${bmsDataPb.measuredLvs12vRail.toFixed(2)}V`;
+        }
+        const positiveCurrentEl = document.getElementById('bms-positive-current');
+        if (positiveCurrentEl && bmsDataPb.positiveCurrent !== undefined) {
+            positiveCurrentEl.textContent = `${bmsDataPb.positiveCurrent.toFixed(2)}A`;
+        }
+        const negativeCurrentEl = document.getElementById('bms-negative-current');
+        if (negativeCurrentEl && bmsDataPb.negativeCurrent !== undefined) {
+            negativeCurrentEl.textContent = `${bmsDataPb.negativeCurrent.toFixed(2)}A`;
+        }
+
+        if (this.debugMode) {
+            console.log("UI updated with BMS data:", bmsDataPb);
         }
     }
 
-    updateAPPSData(data) {
-        this.latestData.apps = data;
-        if (data.apps1) {
-            document.getElementById('apps1').textContent = data.apps1.toFixed(2);
+    updateAPPSData(appsDataPb) { // appsDataPb is from packetPayload.appsData
+        this.latestData.apps = appsDataPb; // Cache the new data structure
+
+        const stateElement = document.getElementById('apps-state');
+        if (stateElement) {
+            // Get the string name of the enum value for display
+            const stateName = Object.keys(APPSStateEnum).find(key => APPSStateEnum[key] === appsDataPb.state);
+            stateElement.textContent = stateName ? stateName.replace(/^APPS_STATE_/, '') : 'UNKNOWN';
         }
-        if (data.apps2) {
-            document.getElementById('apps2').textContent = data.apps2.toFixed(2);
+
+        const throttleElement = document.getElementById('throttle');
+        if (throttleElement && appsDataPb.currentThrottlePercentage !== undefined) {
+            throttleElement.textContent = `${(appsDataPb.currentThrottlePercentage).toFixed(1)}%`;
         }
-        if (data.throttle) {
-            document.getElementById('throttle').textContent = `${(data.throttle * 100).toFixed(1)}%`;
+
+        const motorCurrentElement = document.getElementById('motor-current');
+        if (motorCurrentElement && appsDataPb.currentMotorCurrent !== undefined) {
+            motorCurrentElement.textContent = `${appsDataPb.currentMotorCurrent.toFixed(1)}A`;
+        }
+
+        const motorRpmElement = document.getElementById('motor-rpm');
+        if (motorRpmElement && appsDataPb.currentMotorRpm !== undefined) {
+            motorRpmElement.textContent = `${appsDataPb.currentMotorRpm} RPM`;
+        }
+
+        // Clear old apps1 and apps2 if they are no longer used by new protobuf structure
+        const apps1Element = document.getElementById('apps1');
+        if (apps1Element) apps1Element.textContent = '--'; 
+        const apps2Element = document.getElementById('apps2');
+        if (apps2Element) apps2Element.textContent = '--';
+
+        if (this.debugMode) {
+            console.log("UI updated with APPS data:", appsDataPb);
         }
     }
 
@@ -440,59 +541,173 @@ class DashboardApp {
     }
     
     // Update telemetry data when received
-    updateTelemetryData(data) {
-        if (!data) return;
-
-        // Store the full data object in latest data cache
-        if (data.type === 'json') {
+    updateTelemetryData(packet) { // packet is the new object from telemetry.js
+        if (!packet || packet.type !== 'TelemetryPacket') {
+            if (this.debugMode) console.warn('Received non-TelemetryPacket data in updateTelemetryData:', packet);
+            // Log to telemetry monitor as an unknown structured message for inspection
             this.latestData.telemetry.messages.push({
-                timestamp: data.timestamp,
-                type: 'json',
-                content: JSON.stringify(data.data, null, 2)
+                timestamp: packet.timestamp || new Date().toISOString(),
+                type: packet.type || 'unknown_packet_type',
+                content: typeof packet.data === 'object' ? JSON.stringify(packet.data || packet, null, 2) : (packet.data || packet)
             });
-        } else if (data.type === 'raw') {
-            this.latestData.telemetry.messages.push({
-                timestamp: data.timestamp,
-                type: 'raw',
-                content: data.data
-            });
+            this.refreshTelemetryMonitor();
+            return;
         }
 
-        // Trim message history to last 1000
+        // Log structured packet to the telemetry monitor view
+        this.latestData.telemetry.messages.push({
+            timestamp: packet.timestamp,
+            // Get string name of enum: TelemetryPacketDataType[packet.packetType] might be undefined if enum value is out of typical range
+            type: `Protobuf: ${(Object.keys(TelemetryPacketDataType).find(key => TelemetryPacketDataType[key] === packet.packetType) || 'UNKNOWN_TYPE')}`,
+            content: packet.data // packet.data is already a JS object from .toObject()
+        });
         if (this.latestData.telemetry.messages.length > 1000) {
-            this.latestData.telemetry.messages = 
-                this.latestData.telemetry.messages.slice(-1000);
+            this.latestData.telemetry.messages.shift(); // Keep it to the last 1000 entries
+        }
+        this.refreshTelemetryMonitor(); // Helper function to update the telemetry view
+
+        // Process the data based on packetType
+        const packetPayload = packet.data; // This is the .toObject() result from TelemetryPacket
+
+        if (this.debugMode) {
+            console.log(`Processing TelemetryPacket - Type: ${packet.packetType}, Payload:`, packetPayload);
         }
 
-        // Update the telemetry output if visible
-        const output = document.getElementById('telemetry-output');
-        if (output) {
-            // Clear old content if too many messages
-            if (output.childNodes.length > 1000) {
-                output.innerHTML = '';
-            }
+        switch (packet.packetType) {
+            case TelemetryPacketDataType.DATA_TYPE_APPS:
+                if (packetPayload.appsData) {
+                    if (this.debugMode) console.log("APPS Data Received for UI update:", packetPayload.appsData);
+                    this.updateAPPSData(packetPayload.appsData);
+                }
+                break;
+            case TelemetryPacketDataType.DATA_TYPE_BMS:
+                if (packetPayload.bmsData) {
+                    if (this.debugMode) console.log("BMS Data Received for UI update:", packetPayload.bmsData);
+                    this.updateBatteryStatus(packetPayload.bmsData); 
+                }
+                break;
+            case TelemetryPacketDataType.DATA_TYPE_INVERTER:
+                if (packetPayload.inverterData) {
+                    if (this.debugMode) console.log("Inverter Data Received for UI update:", packetPayload.inverterData);
+                    this.updateInverterStatus(packetPayload.inverterData);
+                }
+                break;
+            default:
+                console.warn("Received TelemetryPacket with unknown packetType enum value:", packet.packetType, packetPayload);
+        }
+    }
 
-            const messageElement = document.createElement('div');
-            messageElement.className = `telemetry-message ${data.type}`;
-            
-            // Format timestamp for display
-            const timestamp = new Date(data.timestamp).toLocaleTimeString();
-            
-            if (data.type === 'json') {
-                messageElement.innerHTML = `
-                    <span class="timestamp">${timestamp}</span>
-                    <pre class="json">${JSON.stringify(data.data, null, 2)}</pre>
-                `;
+    // New method for Inverter Data (placeholder for UI updates)
+    updateInverterStatus(data) {
+        // Assuming 'data' is the inverterData object from the TelemetryPacket
+        this.latestData.inverter = data; // Cache it
+        if (this.debugMode) console.log("Updating Inverter Status with data:", data);
+
+        // Fault Code
+        const faultCodeEl = document.getElementById('inverter-fault-code');
+        if (faultCodeEl) {
+            const faultName = Object.keys(InverterFaultCodeEnum).find(key => InverterFaultCodeEnum[key] === data.faultCode);
+            faultCodeEl.textContent = faultName ? faultName.replace(/^FAULT_CODE_/, '') : 'UNKNOWN';
+            // Optionally, add classes for styling based on fault (e.g., 'no-fault', 'fault-active')
+            faultCodeEl.className = (data.faultCode === InverterFaultCodeEnum.FAULT_CODE_NO_FAULTS || data.faultCode === InverterFaultCodeEnum.FAULT_CODE_UNSPECIFIED) ? 'status-inactive' : 'status-active';
+        }
+
+        // Numerical Values
+        const erpmEl = document.getElementById('inverter-erpm');
+        if (erpmEl && data.erpm !== undefined) erpmEl.textContent = data.erpm;
+        
+        const dutyCycleEl = document.getElementById('inverter-duty-cycle');
+        if (dutyCycleEl && data.dutyCycle !== undefined) dutyCycleEl.textContent = `${(data.dutyCycle * 100).toFixed(1)}%`;
+        
+        const inputDcVoltageEl = document.getElementById('inverter-input-dc-voltage');
+        if (inputDcVoltageEl && data.inputDcVoltage !== undefined) inputDcVoltageEl.textContent = `${data.inputDcVoltage.toFixed(1)}V`;
+        
+        const acMotorCurrentEl = document.getElementById('inverter-ac-motor-current');
+        if (acMotorCurrentEl && data.acMotorCurrent !== undefined) acMotorCurrentEl.textContent = `${data.acMotorCurrent.toFixed(1)}A`;
+        
+        const dcBatteryCurrentEl = document.getElementById('inverter-dc-battery-current');
+        if (dcBatteryCurrentEl && data.dcBatteryCurrent !== undefined) dcBatteryCurrentEl.textContent = `${data.dcBatteryCurrent.toFixed(1)}A`;
+        
+        const controllerTempEl = document.getElementById('inverter-controller-temp');
+        if (controllerTempEl && data.controllerTemperature !== undefined) controllerTempEl.textContent = `${data.controllerTemperature.toFixed(1)}°C`;
+        
+        const motorTempEl = document.getElementById('inverter-motor-temp');
+        if (motorTempEl && data.motorTemperature !== undefined) motorTempEl.textContent = `${data.motorTemperature.toFixed(1)}°C`;
+
+        // Drive Enabled Status
+        const driveEnabledEl = document.getElementById('inverter-drive-enabled');
+        if (driveEnabledEl) {
+            driveEnabledEl.textContent = data.driveEnabled ? 'ENABLED' : 'DISABLED';
+            driveEnabledEl.className = data.driveEnabled ? 'status-active' : 'status-inactive';
+        }
+
+        // Limit States
+        const limitStatesContainer = document.getElementById('inverter-limit-states');
+        if (limitStatesContainer && data.limitStates) {
+            limitStatesContainer.innerHTML = ''; // Clear previous limit states
+            const limits = data.limitStates;
+            let activeLimits = [];
+            for (const key in limits) {
+                if (limits[key] === true && key !== '$jspbMessageInstance') { // Check for boolean true and exclude internal prop
+                    activeLimits.push(key.replace(/([A-Z])/g, ' $1').replace(/^\s/, '').toUpperCase()); // Format key for display
+                }
+            }
+            if (activeLimits.length > 0) {
+                const ul = document.createElement('ul');
+                activeLimits.forEach(limitText => {
+                    const li = document.createElement('li');
+                    li.textContent = limitText;
+                    ul.appendChild(li);
+                });
+                limitStatesContainer.appendChild(ul);
             } else {
-                messageElement.innerHTML = `
-                    <span class="timestamp">${timestamp}</span>
-                    <span class="content">${data.data}</span>
-                `;
+                limitStatesContainer.textContent = 'No active limits.';
             }
-            
-            output.appendChild(messageElement);
-            output.scrollTop = output.scrollHeight;
         }
+    }
+    
+    // Helper to refresh telemetry monitor view (extracted from old updateTelemetryData)
+    refreshTelemetryMonitor() {
+        const output = document.getElementById('telemetry-output');
+        if (!output) return;
+
+        output.innerHTML = ''; // Clear existing content
+        
+        const messagesToDisplay = this.latestData.telemetry.messages.slice(-100); // Display last 100 messages
+
+        messagesToDisplay.forEach(msg => {
+            const messageElement = document.createElement('div');
+            messageElement.className = `telemetry-message ${msg.type ? msg.type.toLowerCase().replace(/[^a-z0-9_]/g, '_') : 'unknown'}`;
+            
+            const timestamp = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 }) : '[no timestamp]';
+            
+            let contentHtml = '';
+            // Sanitize content before inserting as HTML to prevent XSS if content can be arbitrary strings
+            const escapeHtml = (unsafe) => {
+                if (typeof unsafe !== 'string') return unsafe; // return as is if not string
+                return unsafe
+                         .replace(/&/g, "&amp;")
+                         .replace(/</g, "&lt;")
+                         .replace(/>/g, "&gt;")
+                         .replace(/"/g, "&quot;")
+                         .replace(/'/g, "&#039;");
+            };
+
+            if (typeof msg.content === 'string') {
+                contentHtml = `<span class="content">${escapeHtml(msg.content)}</span>`;
+            } else if (typeof msg.content === 'object') {
+                contentHtml = `<pre class="json">${escapeHtml(JSON.stringify(msg.content, null, 2))}</pre>`;
+            } else {
+                contentHtml = `<span class="content">${escapeHtml(String(msg.content))}</span>`;
+            }
+
+            messageElement.innerHTML = `
+                <span class="timestamp">${timestamp}</span>
+                ${contentHtml}
+            `;
+            output.appendChild(messageElement);
+        });
+        output.scrollTop = output.scrollHeight; // Scroll to the bottom
     }
     
     // Update telemetry monitor with raw data

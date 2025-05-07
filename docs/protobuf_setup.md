@@ -2,6 +2,14 @@
 
 This document outlines how Protocol Buffers (Protobuf) are used in this project for data serialization and how to manage the associated generated code.
 
+## Quick Start
+
+To generate the Protobuf JavaScript files, run the following command:
+
+```bash
+npm run build:protos
+```
+
 ## Overview
 
 This dashboard uses Protocol Buffers to define the structure of data exchanged with the vehicle. The Protobuf definitions (`.proto` files) are the single source of truth for the data format.
