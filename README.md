@@ -4,9 +4,9 @@ A real-time monitoring dashboard for the York Formula Student electric race car.
 
 ## Documentation
 
-Protocol Buffer setup: [`docs/protobuf_setup.md`](docs/protobuf_setup.md)
-Data pipeline and Protobuf: [`docs/data_pipeline_and_protobuf.md`](docs/data_pipeline_and_protobuf.md)
-Frontend data handling: [`docs/frontend_data_handling.md`](docs/frontend_data_handling.md)
+- Protobuf setup: [`docs/protobuf_setup.md`](docs/protobuf_setup.md)
+- Data pipeline and Protobuf: [`docs/data_pipeline_and_protobuf.md`](docs/data_pipeline_and_protobuf.md)
+- Frontend data handling: [`docs/frontend_data_handling.md`](docs/frontend_data_handling.md)
 
 ## Created By
 Roshan Christison - York Formula Student
