@@ -2,9 +2,45 @@
 
 import Layout from '../../components/Layout';
 import InverterComponent from '../../features/telemetry/InverterComponent';
+import { useTelemetryStore } from '../../features/telemetry/telemetrySlice';
 import Link from 'next/link';
 
 export default function InverterFocusPage() {
+  const inverterData = useTelemetryStore(state => state.latestInverterData);
+  const isConnected = useTelemetryStore(state => state.isConnected);
+  const packetsReceived = useTelemetryStore(state => state.packetsReceived);
+
+  // Helper functions for additional analysis
+  const calculateRPM = (erpm: number) => {
+    const polePairs = 7; // Assuming 7 pole pairs for a typical motor
+    return erpm / polePairs;
+  };
+
+  const calculateEfficiency = () => {
+    if (!inverterData?.inputDcVoltage || !inverterData?.dcBatteryCurrent || !inverterData?.acMotorCurrent) return 0;
+    const dcPower = inverterData.inputDcVoltage * Math.abs(inverterData.dcBatteryCurrent);
+    const acPower = Math.sqrt(3) * 400 * Math.abs(inverterData.acMotorCurrent) * 0.9; // Estimated 3-phase power
+    return dcPower > 0 ? (acPower / dcPower) * 100 : 0;
+  };
+
+  const getThermalStatus = () => {
+    const controllerTemp = inverterData?.controllerTemperature || 0;
+    const motorTemp = inverterData?.motorTemperature || 0;
+    
+    if (controllerTemp > 90 || motorTemp > 90) return { status: 'Critical', color: 'text-red-600' };
+    if (controllerTemp > 70 || motorTemp > 70) return { status: 'Hot', color: 'text-orange-600' };
+    if (controllerTemp > 40 || motorTemp > 40) return { status: 'Warm', color: 'text-yellow-600' };
+    return { status: 'Cool', color: 'text-green-600' };
+  };
+
+  const countActiveLimits = () => {
+    if (!inverterData?.limitStates) return 0;
+    return Object.values(inverterData.limitStates).filter(Boolean).length;
+  };
+
+  const efficiency = calculateEfficiency();
+  const thermalStatus = getThermalStatus();
+
   return (
     <Layout title="Inverter Focus View">
       <div className="space-y-6">
@@ -17,11 +53,11 @@ export default function InverterFocusPage() {
           <span style={{ color: 'var(--foreground)' }}>Inverter Focus View</span>
         </div>
 
-        {/* Back Button */}
+        {/* Header with Back Button and Status */}
         <div className="flex items-center justify-between">
           <Link 
             href="/"
-            className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md border transition-colors"
+            className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md border transition-colors hover:opacity-80"
             style={{ 
               backgroundColor: 'var(--background-secondary)', 
               borderColor: 'var(--border)', 
@@ -30,11 +66,154 @@ export default function InverterFocusPage() {
           >
             ← Back to Dashboard
           </Link>
+          
+          <div className="flex items-center space-x-4">
+            <div className="text-sm" style={{ color: 'var(--foreground)' }}>
+              Packets: {packetsReceived.toLocaleString()}
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <span className="text-sm" style={{ color: 'var(--foreground)' }}>
+                {isConnected ? 'Connected' : 'Disconnected'}
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* Focused Inverter Component */}
-        <div className="max-w-4xl">
-          <InverterComponent />
+        {/* Main Content - Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Primary Component Display */}
+          <div className="lg:col-span-2">
+            <InverterComponent />
+          </div>
+
+          {/* Additional Details Panel */}
+          <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}>
+            <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
+              Inverter Analytics
+            </h3>
+            
+            {!inverterData ? (
+              <div className="text-center py-8" style={{ color: 'var(--foreground)' }}>
+                <div className="text-sm">No detailed data available</div>
+                <div className="text-xs mt-2">Connect to view inverter analytics</div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Performance Metrics */}
+                <div>
+                  <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>
+                    Performance
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span style={{ color: 'var(--foreground)' }}>Efficiency:</span>
+                      <span className="font-mono" style={{ color: 'var(--foreground)' }}>
+                        {efficiency.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span style={{ color: 'var(--foreground)' }}>Power Output:</span>
+                      <span className="font-mono" style={{ color: 'var(--foreground)' }}>
+                        {((inverterData.inputDcVoltage || 0) * Math.abs(inverterData.dcBatteryCurrent || 0) / 1000).toFixed(1)} kW
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span style={{ color: 'var(--foreground)' }}>Pole Pairs:</span>
+                      <span className="font-mono" style={{ color: 'var(--foreground)' }}>
+                        7
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Thermal Analysis */}
+                <div className="border-t pt-4" style={{ borderColor: 'var(--border)' }}>
+                  <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>
+                    Thermal Status
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span style={{ color: 'var(--foreground)' }}>Overall:</span>
+                      <span className={`font-medium ${thermalStatus.color}`}>
+                        {thermalStatus.status}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span style={{ color: 'var(--foreground)' }}>Controller:</span>
+                      <span className="font-mono" style={{ color: 'var(--foreground)' }}>
+                        {(inverterData.controllerTemperature || 0).toFixed(1)}°C
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span style={{ color: 'var(--foreground)' }}>Motor:</span>
+                      <span className="font-mono" style={{ color: 'var(--foreground)' }}>
+                        {(inverterData.motorTemperature || 0).toFixed(1)}°C
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Operating Limits */}
+                <div className="border-t pt-4" style={{ borderColor: 'var(--border)' }}>
+                  <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>
+                    Operating Limits
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span style={{ color: 'var(--foreground)' }}>Active Limits:</span>
+                      <span className={`font-mono ${countActiveLimits() > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                        {countActiveLimits()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span style={{ color: 'var(--foreground)' }}>Drive Status:</span>
+                      <span className={`font-medium ${inverterData.driveEnabled ? 'text-green-600' : 'text-gray-600'}`}>
+                        {inverterData.driveEnabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span style={{ color: 'var(--foreground)' }}>Fault Code:</span>
+                      <span className="font-mono" style={{ color: 'var(--foreground)' }}>
+                        {inverterData.faultCode || 0}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* System Information */}
+                <div className="border-t pt-4" style={{ borderColor: 'var(--border)' }}>
+                  <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>
+                    System Info
+                  </h4>
+                  <div className="text-xs space-y-1" style={{ color: 'var(--foreground)' }}>
+                    <div>• 3-phase AC motor controller</div>
+                    <div>• Variable frequency drive (VFD)</div>
+                    <div>• Regenerative braking capable</div>
+                    <div>• Real-time fault monitoring</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Additional Info Section */}
+        <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}>
+          <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
+            About Motor Controller (Inverter)
+          </h3>
+          <div className="text-sm space-y-2" style={{ color: 'var(--foreground)' }}>
+            <p>
+              The Motor Controller (Inverter) is responsible for converting DC power from the battery into 
+              variable-frequency AC power to drive the electric motor. It precisely controls motor speed, torque, 
+              and direction while monitoring system health and implementing safety protections.
+            </p>
+            <p>
+              <strong>Key Capabilities:</strong> Variable frequency drive control, regenerative braking, 
+              thermal protection, overcurrent protection, fault detection, and real-time performance optimization.
+            </p>
+          </div>
         </div>
       </div>
     </Layout>
