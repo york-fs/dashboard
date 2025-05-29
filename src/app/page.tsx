@@ -7,6 +7,7 @@ import InverterComponent from '../features/telemetry/InverterComponent';
 import { useTelemetryStore } from '../features/telemetry/telemetrySlice';
 import { SerialClient } from '../services/serialClient';
 import { useState } from 'react';
+import Link from 'next/link';
 
 export default function DashboardPage() {
   const [client] = useState(() => new SerialClient());
@@ -51,30 +52,44 @@ export default function DashboardPage() {
       <div className="space-y-6">
         {/* Connection Controls */}
         <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold" style={{ color: 'var(--foreground)' }}>Telemetry Connection</h2>
+          <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                <span className="text-sm capitalize" style={{ color: 'var(--foreground)' }}>{connectionStatus}</span>
+                <span className="text-sm" style={{ color: 'var(--foreground)' }}>
+                  {isConnected ? 'Connected' : 'Disconnected'}
+                </span>
               </div>
-              
-              {!isConnected ? (
-                <button
-                  onClick={handleConnect}
-                  disabled={isConnecting}
-                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
-                >
-                  {isConnecting ? 'Connecting...' : 'Connect Serial'}
-                </button>
-              ) : (
-                <button
-                  onClick={handleDisconnect}
-                  className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-                >
-                  Disconnect
-                </button>
-              )}
+              <div className="text-sm" style={{ color: 'var(--foreground)' }}>
+                Packets: {packetsReceived.toLocaleString()}
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <Link 
+                href="/console"
+                className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md border transition-colors hover:opacity-80"
+                style={{ 
+                  backgroundColor: 'var(--background-secondary)', 
+                  borderColor: 'var(--border)', 
+                  color: 'var(--foreground)' 
+                }}
+              >
+                <span className="mr-2">⚡</span>
+                AT Console
+              </Link>
+              <button
+                onClick={handleConnect}
+                disabled={isConnected}
+                className="px-4 py-2 text-sm font-medium rounded-md transition-colors disabled:opacity-50"
+                style={{ 
+                  backgroundColor: isConnected ? 'var(--background-secondary)' : 'var(--accent)', 
+                  color: isConnected ? 'var(--foreground)' : 'white',
+                  border: `1px solid ${isConnected ? 'var(--border)' : 'var(--accent)'}`
+                }}
+              >
+                {isConnected ? 'Connected' : 'Connect'}
+              </button>
             </div>
           </div>
 
