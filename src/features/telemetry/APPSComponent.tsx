@@ -40,21 +40,21 @@ export default function APPSComponent() {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-gray-900">
+        <h2 className="text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
           Accelerator Pedal Position (APPS)
         </h2>
         <div className="flex items-center space-x-2">
           <div className={`w-3 h-3 rounded-full ${isConnected && !isDataStale ? 'bg-green-500' : 'bg-red-500'}`}></div>
-          <span className="text-sm text-gray-500">
+          <span className="text-sm" style={{ color: 'var(--foreground)' }}>
             {isConnected ? (isDataStale ? 'Stale' : 'Live') : 'Disconnected'}
           </span>
         </div>
       </div>
 
       {!appsData ? (
-        <div className="text-center py-8 text-gray-500">
+        <div className="text-center py-8" style={{ color: 'var(--foreground)' }}>
           <div className="text-lg mb-2">No APPS data available</div>
           <div className="text-sm">Connect to telemetry source to view data</div>
         </div>
@@ -62,7 +62,7 @@ export default function APPSComponent() {
         <div className="space-y-4">
           {/* State */}
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Status:</span>
+            <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Status:</span>
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStateColor(appsData.state || 0)}`}>
               {APPS_STATE_NAMES[appsData.state as keyof typeof APPS_STATE_NAMES] || 'UNKNOWN'}
             </span>
@@ -71,12 +71,12 @@ export default function APPSComponent() {
           {/* Throttle Percentage */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Throttle Position:</span>
-              <span className="text-lg font-bold">
+              <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Throttle Position:</span>
+              <span className="text-lg font-bold" style={{ color: 'var(--foreground)' }}>
                 {((appsData.currentThrottlePercentage || 0) * 100).toFixed(1)}%
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-4">
+            <div className="w-full rounded-full h-4" style={{ backgroundColor: 'var(--border)' }}>
               <div
                 className={`h-4 rounded-full transition-all duration-300 ${getThrottleColor(appsData.currentThrottlePercentage || 0)}`}
                 style={{ width: `${(appsData.currentThrottlePercentage || 0) * 100}%` }}
@@ -86,23 +86,23 @@ export default function APPSComponent() {
 
           {/* Motor Current */}
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Motor Current:</span>
-            <span className="text-lg font-mono">
+            <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Motor Current:</span>
+            <span className="text-lg font-mono" style={{ color: 'var(--foreground)' }}>
               {(appsData.currentMotorCurrent || 0).toFixed(1)} A
             </span>
           </div>
 
           {/* Motor RPM */}
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Motor RPM:</span>
-            <span className="text-lg font-mono">
+            <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Motor RPM:</span>
+            <span className="text-lg font-mono" style={{ color: 'var(--foreground)' }}>
               {(appsData.currentMotorRpm || 0).toLocaleString()} RPM
             </span>
           </div>
 
           {/* Last Update */}
           {lastPacketTime && (
-            <div className="text-xs text-gray-500 border-t pt-3">
+            <div className="text-xs border-t pt-3" style={{ color: 'var(--foreground)', borderColor: 'var(--border)' }}>
               Last update: {new Date(lastPacketTime).toLocaleTimeString()}
               {dataAge && (
                 <span className="ml-2">

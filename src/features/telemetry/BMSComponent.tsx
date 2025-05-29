@@ -79,21 +79,21 @@ export default function BMSComponent() {
   const { min: minTemperature, max: maxTemperature } = getMinMaxTemperatures();
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-gray-900">
+        <h2 className="text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
           Battery Management System (BMS)
         </h2>
         <div className="flex items-center space-x-2">
           <div className={`w-3 h-3 rounded-full ${isConnected && !isDataStale ? 'bg-green-500' : 'bg-red-500'}`}></div>
-          <span className="text-sm text-gray-500">
+          <span className="text-sm" style={{ color: 'var(--foreground)' }}>
             {isConnected ? (isDataStale ? 'Stale' : 'Live') : 'Disconnected'}
           </span>
         </div>
       </div>
 
       {!bmsData ? (
-        <div className="text-center py-8 text-gray-500">
+        <div className="text-center py-8" style={{ color: 'var(--foreground)' }}>
           <div className="text-lg mb-2">No BMS data available</div>
           <div className="text-sm">Connect to telemetry source to view data</div>
         </div>
@@ -101,7 +101,7 @@ export default function BMSComponent() {
         <div className="space-y-4">
           {/* Shutdown Status */}
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Shutdown Status:</span>
+            <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Shutdown Status:</span>
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${getShutdownColor(bmsData.shutdownActivated || false)}`}>
               {bmsData.shutdownActivated ? 'SHUTDOWN' : 'NORMAL'}
             </span>
@@ -110,7 +110,7 @@ export default function BMSComponent() {
           {/* Shutdown Reason (if shutdown) */}
           {bmsData.shutdownActivated && (
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Shutdown Reason:</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Shutdown Reason:</span>
               <span className="text-sm font-medium text-red-600">
                 {SHUTDOWN_REASON_NAMES[bmsData.shutdownReason as keyof typeof SHUTDOWN_REASON_NAMES] || 'UNKNOWN'}
               </span>
@@ -119,15 +119,15 @@ export default function BMSComponent() {
 
           {/* LVS 12V Rail */}
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">12V Rail:</span>
-            <span className="text-lg font-mono">
+            <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>12V Rail:</span>
+            <span className="text-lg font-mono" style={{ color: 'var(--foreground)' }}>
               {(bmsData.measuredLvs_12vRail || 0).toFixed(2)} V
             </span>
           </div>
 
           {/* Pack Voltage (calculated) */}
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Pack Voltage:</span>
+            <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Pack Voltage:</span>
             <span className="text-lg font-mono font-bold text-blue-600">
               {packVoltage.toFixed(1)} V
             </span>
@@ -136,13 +136,13 @@ export default function BMSComponent() {
           {/* Current Measurements */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Positive Current:</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Positive Current:</span>
               <span className={`text-lg font-mono ${getCurrentColor(bmsData.positiveCurrent || 0)}`}>
                 {(bmsData.positiveCurrent || 0).toFixed(1)} A
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Negative Current:</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Negative Current:</span>
               <span className={`text-lg font-mono ${getCurrentColor(bmsData.negativeCurrent || 0)}`}>
                 {(bmsData.negativeCurrent || 0).toFixed(1)} A
               </span>
@@ -152,14 +152,14 @@ export default function BMSComponent() {
           {/* Cell Voltages */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Min Cell Voltage:</span>
-              <span className="text-lg font-mono">
+              <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Min Cell Voltage:</span>
+              <span className="text-lg font-mono" style={{ color: 'var(--foreground)' }}>
                 {minCellVoltage.toFixed(3)} V
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Max Cell Voltage:</span>
-              <span className="text-lg font-mono">
+              <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Max Cell Voltage:</span>
+              <span className="text-lg font-mono" style={{ color: 'var(--foreground)' }}>
                 {maxCellVoltage.toFixed(3)} V
               </span>
             </div>
@@ -168,14 +168,14 @@ export default function BMSComponent() {
           {/* Temperatures */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Min Temperature:</span>
-              <span className="text-lg font-mono">
+              <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Min Temperature:</span>
+              <span className="text-lg font-mono" style={{ color: 'var(--foreground)' }}>
                 {minTemperature.toFixed(1)}°C
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Max Temperature:</span>
-              <span className="text-lg font-mono">
+              <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Max Temperature:</span>
+              <span className="text-lg font-mono" style={{ color: 'var(--foreground)' }}>
                 {maxTemperature.toFixed(1)}°C
               </span>
             </div>
@@ -183,15 +183,15 @@ export default function BMSComponent() {
 
           {/* Segment Count */}
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Active Segments:</span>
-            <span className="text-lg font-mono">
+            <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Active Segments:</span>
+            <span className="text-lg font-mono" style={{ color: 'var(--foreground)' }}>
               {bmsData.segments?.length || 0}
             </span>
           </div>
 
           {/* Last Update */}
           {lastPacketTime && (
-            <div className="text-xs text-gray-500 border-t pt-3">
+            <div className="text-xs border-t pt-3" style={{ color: 'var(--foreground)', borderColor: 'var(--border)' }}>
               Last update: {new Date(lastPacketTime).toLocaleTimeString()}
               {dataAge && (
                 <span className="ml-2">

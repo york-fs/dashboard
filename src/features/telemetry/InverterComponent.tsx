@@ -71,21 +71,21 @@ export default function InverterComponent() {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-gray-900">
+        <h2 className="text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
           Motor Controller (Inverter)
         </h2>
         <div className="flex items-center space-x-2">
           <div className={`w-3 h-3 rounded-full ${isConnected && !isDataStale ? 'bg-green-500' : 'bg-red-500'}`}></div>
-          <span className="text-sm text-gray-500">
+          <span className="text-sm" style={{ color: 'var(--foreground)' }}>
             {isConnected ? (isDataStale ? 'Stale' : 'Live') : 'Disconnected'}
           </span>
         </div>
       </div>
 
       {!inverterData ? (
-        <div className="text-center py-8 text-gray-500">
+        <div className="text-center py-8" style={{ color: 'var(--foreground)' }}>
           <div className="text-lg mb-2">No Inverter data available</div>
           <div className="text-sm">Connect to telemetry source to view data</div>
         </div>
@@ -93,7 +93,7 @@ export default function InverterComponent() {
         <div className="space-y-4">
           {/* Fault Status */}
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Fault Status:</span>
+            <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Fault Status:</span>
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${getFaultColor(inverterData.faultCode || 0)}`}>
               {FAULT_CODE_NAMES[inverterData.faultCode as keyof typeof FAULT_CODE_NAMES] || 'UNKNOWN'}
             </span>
@@ -101,7 +101,7 @@ export default function InverterComponent() {
 
           {/* Drive Enable Status */}
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Drive Enabled:</span>
+            <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Drive Enabled:</span>
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${inverterData.driveEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
               {inverterData.driveEnabled ? 'ENABLED' : 'DISABLED'}
             </span>
@@ -109,16 +109,16 @@ export default function InverterComponent() {
 
           {/* Motor RPM */}
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Motor RPM:</span>
-            <span className="text-lg font-mono font-bold">
+            <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Motor RPM:</span>
+            <span className="text-lg font-mono font-bold" style={{ color: 'var(--foreground)' }}>
               {calculateRPM(inverterData.erpm || 0).toLocaleString()} RPM
             </span>
           </div>
 
           {/* ERPM (raw) */}
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Electrical RPM:</span>
-            <span className="text-lg font-mono">
+            <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Electrical RPM:</span>
+            <span className="text-lg font-mono" style={{ color: 'var(--foreground)' }}>
               {(inverterData.erpm || 0).toLocaleString()} ERPM
             </span>
           </div>
@@ -126,12 +126,12 @@ export default function InverterComponent() {
           {/* Duty Cycle */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Duty Cycle:</span>
-              <span className="text-lg font-bold">
+              <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Duty Cycle:</span>
+              <span className="text-lg font-bold" style={{ color: 'var(--foreground)' }}>
                 {((inverterData.dutyCycle || 0) * 100).toFixed(1)}%
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-4">
+            <div className="w-full rounded-full h-4" style={{ backgroundColor: 'var(--border)' }}>
               <div
                 className={`h-4 rounded-full transition-all duration-300 ${getDutyCycleColor(inverterData.dutyCycle || 0)}`}
                 style={{ width: `${(inverterData.dutyCycle || 0) * 100}%` }}
@@ -142,13 +142,13 @@ export default function InverterComponent() {
           {/* Voltages and Currents */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">DC Input Voltage:</span>
-              <span className="text-lg font-mono">
+              <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>DC Input Voltage:</span>
+              <span className="text-lg font-mono" style={{ color: 'var(--foreground)' }}>
                 {(inverterData.inputDcVoltage || 0).toFixed(1)} V
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">AC Motor Current:</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>AC Motor Current:</span>
               <span className={`text-lg font-mono ${getCurrentColor(inverterData.acMotorCurrent || 0)}`}>
                 {(inverterData.acMotorCurrent || 0).toFixed(1)} A
               </span>
@@ -156,7 +156,7 @@ export default function InverterComponent() {
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">DC Battery Current:</span>
+            <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>DC Battery Current:</span>
             <span className={`text-lg font-mono ${getCurrentColor(inverterData.dcBatteryCurrent || 0)}`}>
               {(inverterData.dcBatteryCurrent || 0).toFixed(1)} A
             </span>
@@ -165,13 +165,13 @@ export default function InverterComponent() {
           {/* Temperatures */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Controller Temp:</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Controller Temp:</span>
               <span className={`text-lg font-mono ${getTemperatureColor(inverterData.controllerTemperature || 0)}`}>
                 {(inverterData.controllerTemperature || 0).toFixed(1)}°C
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Motor Temp:</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Motor Temp:</span>
               <span className={`text-lg font-mono ${getTemperatureColor(inverterData.motorTemperature || 0)}`}>
                 {(inverterData.motorTemperature || 0).toFixed(1)}°C
               </span>
@@ -180,7 +180,7 @@ export default function InverterComponent() {
 
           {/* Limit States Summary */}
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Active Limits:</span>
+            <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Active Limits:</span>
             <span className={`text-lg font-mono ${countActiveLimits() > 0 ? 'text-orange-600' : 'text-green-600'}`}>
               {countActiveLimits()}
             </span>
@@ -188,8 +188,8 @@ export default function InverterComponent() {
 
           {/* Detailed Limit States (if any active) */}
           {countActiveLimits() > 0 && inverterData.limitStates && (
-            <div className="border-t pt-3">
-              <div className="text-sm font-medium text-gray-700 mb-2">Active Limit States:</div>
+            <div className="border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+              <div className="text-sm font-medium mb-2" style={{ color: 'var(--foreground)' }}>Active Limit States:</div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 {inverterData.limitStates.capacitorTemperature && <span className="text-orange-600">• Capacitor Temperature</span>}
                 {inverterData.limitStates.dcCurrentLimit && <span className="text-orange-600">• DC Current Limit</span>}
@@ -208,7 +208,7 @@ export default function InverterComponent() {
 
           {/* Last Update */}
           {lastPacketTime && (
-            <div className="text-xs text-gray-500 border-t pt-3">
+            <div className="text-xs border-t pt-3" style={{ color: 'var(--foreground)', borderColor: 'var(--border)' }}>
               Last update: {new Date(lastPacketTime).toLocaleTimeString()}
               {dataAge && (
                 <span className="ml-2">

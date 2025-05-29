@@ -50,13 +50,13 @@ export default function DashboardPage() {
     <Layout title="Electric Car Dashboard">
       <div className="space-y-6">
         {/* Connection Controls */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Telemetry Connection</h2>
+            <h2 className="text-xl font-semibold" style={{ color: 'var(--foreground)' }}>Telemetry Connection</h2>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                <span className="text-sm text-gray-500 capitalize">{connectionStatus}</span>
+                <span className="text-sm capitalize" style={{ color: 'var(--foreground)' }}>{connectionStatus}</span>
               </div>
               
               {!isConnected ? (
@@ -80,11 +80,11 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-600">Packets Received:</span>
-              <span className="font-mono">{packetsReceived.toLocaleString()}</span>
+              <span style={{ color: 'var(--foreground)' }}>Packets Received:</span>
+              <span className="font-mono" style={{ color: 'var(--foreground)' }}>{packetsReceived.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Status:</span>
+              <span style={{ color: 'var(--foreground)' }}>Status:</span>
               <span className={`font-medium ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
                 {isConnected ? 'Connected' : 'Disconnected'}
               </span>
@@ -115,7 +115,7 @@ export default function DashboardPage() {
 
         {/* Data Not Available Notice */}
         {!isConnected && (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12" style={{ color: 'var(--foreground)' }}>
             <div className="text-xl mb-2">🔌 Not Connected</div>
             <div className="text-lg mb-4">Connect to telemetry source to view real-time data</div>
             <div className="text-sm">
