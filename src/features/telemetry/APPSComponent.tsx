@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { useTelemetryStore } from './telemetrySlice';
 
 const APPS_STATE_NAMES = {
@@ -42,9 +43,11 @@ export default function APPSComponent() {
   return (
     <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
-          Accelerator Pedal Position (APPS)
-        </h2>
+        <Link href="/apps" className="hover:underline">
+          <h2 className="text-xl font-semibold cursor-pointer" style={{ color: 'var(--foreground)' }}>
+            Accelerator Pedal Position (APPS)
+          </h2>
+        </Link>
         <div className="flex items-center space-x-2">
           <div className={`w-3 h-3 rounded-full ${isConnected && !isDataStale ? 'bg-green-500' : 'bg-red-500'}`}></div>
           <span className="text-sm" style={{ color: 'var(--foreground)' }}>
