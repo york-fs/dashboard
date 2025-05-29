@@ -2,6 +2,7 @@
 
 import Layout from '../../components/Layout';
 import BMSComponent from '../../features/telemetry/BMSComponent';
+import { Breadcrumb } from '../../components/Breadcrumb';
 import { useTelemetryStore } from '../../features/telemetry/telemetrySlice';
 import Link from 'next/link';
 
@@ -9,6 +10,11 @@ export default function BMSFocusPage() {
   const bmsData = useTelemetryStore(state => state.latestBmsData);
   const isConnected = useTelemetryStore(state => state.isConnected);
   const packetsReceived = useTelemetryStore(state => state.packetsReceived);
+
+  const breadcrumbItems = [
+    { label: 'Dashboard', href: '/' },
+    { label: 'BMS Focus View' }
+  ];
 
   // Helper functions for additional analysis
   const calculatePackVoltage = () => {
@@ -64,13 +70,7 @@ export default function BMSFocusPage() {
     <Layout title="BMS Focus View">
       <div className="space-y-6">
         {/* Breadcrumb Navigation */}
-        <div className="flex items-center space-x-2 text-sm">
-          <Link href="/" className="hover:underline" style={{ color: 'var(--accent)' }}>
-            Dashboard
-          </Link>
-          <span style={{ color: 'var(--foreground)' }}>›</span>
-          <span style={{ color: 'var(--foreground)' }}>BMS Focus View</span>
-        </div>
+        <Breadcrumb items={breadcrumbItems} />
 
         {/* Header with Back Button and Status */}
         <div className="flex items-center justify-between">
@@ -102,8 +102,168 @@ export default function BMSFocusPage() {
         {/* Main Content - Two Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Primary Component Display */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
             <BMSComponent />
+            
+            {/* Enhanced Cell Voltage Visualization */}
+            {bmsData && bmsData.segments && (
+              <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}>
+                <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
+                  Cell Voltage Distribution
+                </h3>
+                
+                <div className="space-y-6">
+                  {/* Pack Overview */}
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--background-secondary)' }}>
+                      <div className="text-2xl font-bold mb-1" style={{ color: 'var(--foreground)' }}>
+                        {packVoltage.toFixed(1)}V
+                      </div>
+                      <div className="text-sm" style={{ color: 'var(--foreground)' }}>Pack Voltage</div>
+                    </div>
+                    <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--background-secondary)' }}>
+                      <div className="text-2xl font-bold mb-1" style={{ color: 'var(--foreground)' }}>
+                        {cellStats.avg.toFixed(3)}V
+                      </div>
+                      <div className="text-sm" style={{ color: 'var(--foreground)' }}>Avg Cell</div>
+                    </div>
+                    <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--background-secondary)' }}>
+                      <div className="text-2xl font-bold mb-1" style={{ color: 'var(--foreground)' }}>
+                        {(cellStats.max - cellStats.min).toFixed(3)}V
+                      </div>
+                      <div className="text-sm" style={{ color: 'var(--foreground)' }}>Voltage Spread</div>
+                    </div>
+                  </div>
+                  
+                  {/* Individual Segment Visualization */}
+                  {bmsData.segments.map((segment, segmentIndex) => (
+                    <div key={segmentIndex} className="space-y-3">
+                      <h4 className="text-md font-medium" style={{ color: 'var(--foreground)' }}>
+                        Segment {segmentIndex + 1} - {segment.cellVoltages?.length || 0} Cells
+                      </h4>
+                      
+                      {/* Cell Voltage Bars */}
+                      <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-12 gap-2">
+                        {segment.cellVoltages?.map((voltage, cellIndex) => {
+                          const normalizedVoltage = ((voltage - cellStats.min) / (cellStats.max - cellStats.min)) * 100;
+                          const isLow = voltage < cellStats.avg - 0.05;
+                          const isHigh = voltage > cellStats.avg + 0.05;
+                          
+                          return (
+                            <div key={cellIndex} className="text-center">
+                              <div 
+                                className="w-full h-16 rounded-sm border relative group cursor-pointer"
+                                style={{ backgroundColor: 'var(--border)' }}
+                              >
+                                <div
+                                  className="absolute bottom-0 w-full rounded-sm transition-all duration-300"
+                                  style={{ 
+                                    height: `${Math.max(normalizedVoltage, 5)}%`,
+                                    backgroundColor: isLow ? '#ef4444' : isHigh ? '#f59e0b' : '#10b981'
+                                  }}
+                                />
+                                
+                                {/* Tooltip on hover */}
+                                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                  {voltage.toFixed(3)}V
+                                </div>
+                              </div>
+                              <div className="text-xs mt-1" style={{ color: 'var(--foreground)' }}>
+                                {cellIndex + 1}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      
+                      {/* Segment Statistics */}
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div className="flex justify-between">
+                          <span style={{ color: 'var(--foreground)' }}>Min:</span>
+                          <span className="font-mono" style={{ color: 'var(--foreground)' }}>
+                            {Math.min(...(segment.cellVoltages || [])).toFixed(3)}V
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span style={{ color: 'var(--foreground)' }}>Max:</span>
+                          <span className="font-mono" style={{ color: 'var(--foreground)' }}>
+                            {Math.max(...(segment.cellVoltages || [])).toFixed(3)}V
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span style={{ color: 'var(--foreground)' }}>Spread:</span>
+                          <span className="font-mono" style={{ color: 'var(--foreground)' }}>
+                            {(Math.max(...(segment.cellVoltages || [])) - Math.min(...(segment.cellVoltages || []))).toFixed(3)}V
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Temperature Monitoring */}
+            {bmsData && bmsData.segments && (
+              <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}>
+                <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
+                  Temperature Monitoring
+                </h3>
+                
+                <div className="space-y-4">
+                  {/* Temperature Overview */}
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--background-secondary)' }}>
+                      <div className="text-2xl font-bold mb-1" style={{ color: 'var(--foreground)' }}>
+                        {tempStats.avg.toFixed(1)}°C
+                      </div>
+                      <div className="text-sm" style={{ color: 'var(--foreground)' }}>Average</div>
+                    </div>
+                    <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--background-secondary)' }}>
+                      <div className="text-2xl font-bold mb-1" style={{ color: 'var(--foreground)' }}>
+                        {tempStats.max.toFixed(1)}°C
+                      </div>
+                      <div className="text-sm" style={{ color: 'var(--foreground)' }}>Hottest</div>
+                    </div>
+                    <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--background-secondary)' }}>
+                      <div className="text-2xl font-bold mb-1" style={{ color: 'var(--foreground)' }}>
+                        {(tempStats.max - tempStats.min).toFixed(1)}°C
+                      </div>
+                      <div className="text-sm" style={{ color: 'var(--foreground)' }}>Range</div>
+                    </div>
+                  </div>
+                  
+                  {/* Temperature Sensors by Segment */}
+                  {bmsData.segments.map((segment, segmentIndex) => (
+                    <div key={segmentIndex} className="space-y-2">
+                      <h4 className="text-md font-medium" style={{ color: 'var(--foreground)' }}>
+                        Segment {segmentIndex + 1} Temperatures
+                      </h4>
+                      
+                      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
+                        {segment.temperatures?.map((temp, tempIndex) => {
+                          const tempColor = temp < 30 ? '#3b82f6' : 
+                                          temp < 40 ? '#10b981' :
+                                          temp < 50 ? '#f59e0b' :
+                                          temp < 60 ? '#f97316' : '#ef4444';
+                          
+                          return (
+                            <div key={tempIndex} className="text-center p-3 rounded-lg" style={{ backgroundColor: 'var(--background-secondary)' }}>
+                              <div className="text-lg font-bold" style={{ color: tempColor }}>
+                                {temp.toFixed(1)}°
+                              </div>
+                              <div className="text-xs" style={{ color: 'var(--foreground)' }}>
+                                T{tempIndex + 1}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Additional Details Panel */}

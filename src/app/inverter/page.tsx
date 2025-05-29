@@ -2,6 +2,7 @@
 
 import Layout from '../../components/Layout';
 import InverterComponent from '../../features/telemetry/InverterComponent';
+import { Breadcrumb } from '../../components/Breadcrumb';
 import { useTelemetryStore } from '../../features/telemetry/telemetrySlice';
 import Link from 'next/link';
 
@@ -9,6 +10,11 @@ export default function InverterFocusPage() {
   const inverterData = useTelemetryStore(state => state.latestInverterData);
   const isConnected = useTelemetryStore(state => state.isConnected);
   const packetsReceived = useTelemetryStore(state => state.packetsReceived);
+
+  const breadcrumbItems = [
+    { label: 'Dashboard', href: '/' },
+    { label: 'Inverter Focus View' }
+  ];
 
   // Helper functions for additional analysis
   const calculateRPM = (erpm: number) => {
@@ -45,13 +51,7 @@ export default function InverterFocusPage() {
     <Layout title="Inverter Focus View">
       <div className="space-y-6">
         {/* Breadcrumb Navigation */}
-        <div className="flex items-center space-x-2 text-sm">
-          <Link href="/" className="hover:underline" style={{ color: 'var(--accent)' }}>
-            Dashboard
-          </Link>
-          <span style={{ color: 'var(--foreground)' }}>›</span>
-          <span style={{ color: 'var(--foreground)' }}>Inverter Focus View</span>
-        </div>
+        <Breadcrumb items={breadcrumbItems} />
 
         {/* Header with Back Button and Status */}
         <div className="flex items-center justify-between">
@@ -83,8 +83,260 @@ export default function InverterFocusPage() {
         {/* Main Content - Two Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Primary Component Display */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
             <InverterComponent />
+            
+            {/* Power Flow Visualization */}
+            {inverterData && (
+              <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}>
+                <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
+                  Power Flow Analysis
+                </h3>
+                
+                <div className="space-y-6">
+                  {/* Power Overview */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="text-center p-4 rounded-lg" style={{ backgroundColor: 'var(--background-secondary)' }}>
+                      <div className="text-2xl font-bold mb-1" style={{ color: 'var(--foreground)' }}>
+                        {((inverterData.inputDcVoltage || 0) * Math.abs(inverterData.dcBatteryCurrent || 0) / 1000).toFixed(1)}
+                      </div>
+                      <div className="text-sm" style={{ color: 'var(--foreground)' }}>DC Power (kW)</div>
+                    </div>
+                    <div className="text-center p-4 rounded-lg" style={{ backgroundColor: 'var(--background-secondary)' }}>
+                      <div className="text-2xl font-bold mb-1" style={{ color: 'var(--foreground)' }}>
+                        {efficiency.toFixed(1)}%
+                      </div>
+                      <div className="text-sm" style={{ color: 'var(--foreground)' }}>Efficiency</div>
+                    </div>
+                    <div className="text-center p-4 rounded-lg" style={{ backgroundColor: 'var(--background-secondary)' }}>
+                      <div className="text-2xl font-bold mb-1" style={{ color: 'var(--foreground)' }}>
+                        {calculateRPM(inverterData.erpm || 0).toFixed(0)}
+                      </div>
+                      <div className="text-sm" style={{ color: 'var(--foreground)' }}>Mech RPM</div>
+                    </div>
+                    <div className="text-center p-4 rounded-lg" style={{ backgroundColor: 'var(--background-secondary)' }}>
+                      <div className="text-2xl font-bold mb-1" style={{ color: 'var(--foreground)' }}>
+                        {(inverterData.dutyCycle || 0).toFixed(3)}
+                      </div>
+                      <div className="text-sm" style={{ color: 'var(--foreground)' }}>Duty Cycle</div>
+                    </div>
+                  </div>
+                  
+                  {/* Power Flow Diagram */}
+                  <div className="relative">
+                    <div className="flex items-center justify-between">
+                      {/* Battery Side */}
+                      <div className="text-center p-4 rounded-lg border-2" style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--accent)' }}>
+                        <div className="text-lg font-bold" style={{ color: 'var(--foreground)' }}>Battery</div>
+                        <div className="text-sm mt-2" style={{ color: 'var(--foreground)' }}>
+                          {(inverterData.inputDcVoltage || 0).toFixed(1)}V
+                        </div>
+                        <div className="text-sm" style={{ color: 'var(--foreground)' }}>
+                          {(inverterData.dcBatteryCurrent || 0).toFixed(1)}A
+                        </div>
+                      </div>
+                      
+                      {/* Flow Arrow */}
+                      <div className="flex-1 flex items-center justify-center">
+                        <div className="flex items-center space-x-2">
+                          <div className="h-1 flex-1 rounded" style={{ backgroundColor: 'var(--accent)' }}></div>
+                          <div className="text-lg" style={{ color: 'var(--accent)' }}>→</div>
+                          <div className="h-1 flex-1 rounded" style={{ backgroundColor: 'var(--accent)' }}></div>
+                        </div>
+                      </div>
+                      
+                      {/* Inverter */}
+                      <div className="text-center p-4 rounded-lg border-2" style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--accent)' }}>
+                        <div className="text-lg font-bold" style={{ color: 'var(--foreground)' }}>Inverter</div>
+                        <div className="text-sm mt-2" style={{ color: 'var(--foreground)' }}>
+                          {efficiency.toFixed(1)}% Eff
+                        </div>
+                        <div className="text-sm" style={{ color: 'var(--foreground)' }}>
+                          {(inverterData.controllerTemperature || 0).toFixed(0)}°C
+                        </div>
+                      </div>
+                      
+                      {/* Flow Arrow */}
+                      <div className="flex-1 flex items-center justify-center">
+                        <div className="flex items-center space-x-2">
+                          <div className="h-1 flex-1 rounded" style={{ backgroundColor: 'var(--accent)' }}></div>
+                          <div className="text-lg" style={{ color: 'var(--accent)' }}>→</div>
+                          <div className="h-1 flex-1 rounded" style={{ backgroundColor: 'var(--accent)' }}></div>
+                        </div>
+                      </div>
+                      
+                      {/* Motor Side */}
+                      <div className="text-center p-4 rounded-lg border-2" style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--accent)' }}>
+                        <div className="text-lg font-bold" style={{ color: 'var(--foreground)' }}>Motor</div>
+                        <div className="text-sm mt-2" style={{ color: 'var(--foreground)' }}>
+                          {calculateRPM(inverterData.erpm || 0).toFixed(0)} RPM
+                        </div>
+                        <div className="text-sm" style={{ color: 'var(--foreground)' }}>
+                          {(inverterData.motorTemperature || 0).toFixed(0)}°C
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Current Monitoring */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>DC Battery Current</div>
+                      <div className="w-full h-4 rounded" style={{ backgroundColor: 'var(--border)' }}>
+                        <div
+                          className="h-4 rounded transition-all duration-300"
+                          style={{ 
+                            width: `${Math.min(Math.abs(inverterData.dcBatteryCurrent || 0) / 100 * 100, 100)}%`,
+                            backgroundColor: Math.abs(inverterData.dcBatteryCurrent || 0) < 20 ? '#10b981' :
+                                           Math.abs(inverterData.dcBatteryCurrent || 0) < 50 ? '#f59e0b' :
+                                           Math.abs(inverterData.dcBatteryCurrent || 0) < 80 ? '#f97316' : '#ef4444'
+                          }}
+                        />
+                      </div>
+                      <div className="text-xs" style={{ color: 'var(--foreground)' }}>
+                        {(inverterData.dcBatteryCurrent || 0).toFixed(1)}A
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>AC Motor Current</div>
+                      <div className="w-full h-4 rounded" style={{ backgroundColor: 'var(--border)' }}>
+                        <div
+                          className="h-4 rounded transition-all duration-300"
+                          style={{ 
+                            width: `${Math.min(Math.abs(inverterData.acMotorCurrent || 0) / 100 * 100, 100)}%`,
+                            backgroundColor: Math.abs(inverterData.acMotorCurrent || 0) < 20 ? '#10b981' :
+                                           Math.abs(inverterData.acMotorCurrent || 0) < 50 ? '#f59e0b' :
+                                           Math.abs(inverterData.acMotorCurrent || 0) < 80 ? '#f97316' : '#ef4444'
+                          }}
+                        />
+                      </div>
+                      <div className="text-xs" style={{ color: 'var(--foreground)' }}>
+                        {(inverterData.acMotorCurrent || 0).toFixed(1)}A
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>Duty Cycle</div>
+                      <div className="w-full h-4 rounded" style={{ backgroundColor: 'var(--border)' }}>
+                        <div
+                          className="h-4 rounded transition-all duration-300"
+                          style={{ 
+                            width: `${Math.min(Math.abs(inverterData.dutyCycle || 0) * 100, 100)}%`,
+                            backgroundColor: Math.abs(inverterData.dutyCycle || 0) < 0.2 ? '#10b981' :
+                                           Math.abs(inverterData.dutyCycle || 0) < 0.5 ? '#f59e0b' :
+                                           Math.abs(inverterData.dutyCycle || 0) < 0.8 ? '#f97316' : '#ef4444'
+                          }}
+                        />
+                      </div>
+                      <div className="text-xs" style={{ color: 'var(--foreground)' }}>
+                        {((inverterData.dutyCycle || 0) * 100).toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Thermal Management */}
+            {inverterData && (
+              <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}>
+                <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
+                  Thermal Management
+                </h3>
+                
+                <div className="space-y-4">
+                  {/* Temperature Gauges */}
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="text-center">
+                      <div className="text-lg font-medium mb-2" style={{ color: 'var(--foreground)' }}>Controller</div>
+                      <div className="relative w-32 h-32 mx-auto">
+                        <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 36 36">
+                          <path
+                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                            fill="none"
+                            stroke="var(--border)"
+                            strokeWidth="3"
+                          />
+                          <path
+                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                            fill="none"
+                            stroke={
+                              (inverterData.controllerTemperature || 0) < 40 ? '#10b981' :
+                              (inverterData.controllerTemperature || 0) < 70 ? '#f59e0b' :
+                              (inverterData.controllerTemperature || 0) < 90 ? '#f97316' : '#ef4444'
+                            }
+                            strokeWidth="3"
+                            strokeDasharray={`${Math.min((inverterData.controllerTemperature || 0) / 100 * 100, 100)}, 100`}
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="text-xl font-bold" style={{ color: 'var(--foreground)' }}>
+                              {(inverterData.controllerTemperature || 0).toFixed(0)}°
+                            </div>
+                            <div className="text-xs" style={{ color: 'var(--foreground)' }}>°C</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="text-center">
+                      <div className="text-lg font-medium mb-2" style={{ color: 'var(--foreground)' }}>Motor</div>
+                      <div className="relative w-32 h-32 mx-auto">
+                        <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 36 36">
+                          <path
+                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                            fill="none"
+                            stroke="var(--border)"
+                            strokeWidth="3"
+                          />
+                          <path
+                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                            fill="none"
+                            stroke={
+                              (inverterData.motorTemperature || 0) < 40 ? '#10b981' :
+                              (inverterData.motorTemperature || 0) < 70 ? '#f59e0b' :
+                              (inverterData.motorTemperature || 0) < 90 ? '#f97316' : '#ef4444'
+                            }
+                            strokeWidth="3"
+                            strokeDasharray={`${Math.min((inverterData.motorTemperature || 0) / 100 * 100, 100)}, 100`}
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="text-xl font-bold" style={{ color: 'var(--foreground)' }}>
+                              {(inverterData.motorTemperature || 0).toFixed(0)}°
+                            </div>
+                            <div className="text-xs" style={{ color: 'var(--foreground)' }}>°C</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Temperature Status */}
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="p-3 rounded-lg" style={{ backgroundColor: 'var(--background-secondary)' }}>
+                      <div className="flex justify-between items-center">
+                        <span style={{ color: 'var(--foreground)' }}>Controller Status:</span>
+                        <span className={thermalStatus.color}>
+                          {thermalStatus.status}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg" style={{ backgroundColor: 'var(--background-secondary)' }}>
+                      <div className="flex justify-between items-center">
+                        <span style={{ color: 'var(--foreground)' }}>Cooling Required:</span>
+                        <span className={Math.max(inverterData.controllerTemperature || 0, inverterData.motorTemperature || 0) > 60 ? 'text-orange-600' : 'text-green-600'}>
+                          {Math.max(inverterData.controllerTemperature || 0, inverterData.motorTemperature || 0) > 60 ? 'Yes' : 'No'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Additional Details Panel */}
