@@ -325,8 +325,18 @@ export class SerialClient {
 
     return new Promise((resolve, reject) => {
       let responseBuffer = '';
-      const responseTimeout: NodeJS.Timeout = setTimeout(() => {
+      let responseTimeout: NodeJS.Timeout;
+      let responseDelayTimeout: NodeJS.Timeout;
+
+      const cleanup = () => {
         window.removeEventListener('atResponse', handleATResponse as EventListener);
+        clearTimeout(responseTimeout);
+        clearTimeout(responseDelayTimeout);
+      };
+
+      // Set main timeout
+      responseTimeout = setTimeout(() => {
+        cleanup();
         reject(new Error('AT command timeout'));
       }, 5000);
 
@@ -334,15 +344,24 @@ export class SerialClient {
       const handleATResponse = (event: CustomEvent) => {
         responseBuffer += event.detail;
         
-        // Check if we have a complete response (ends with OK, ERROR, or specific response)
+        // Clear any existing delay timeout
+        clearTimeout(responseDelayTimeout);
+        
+        // Check for immediate completion indicators
         if (responseBuffer.includes('OK\r\n') || 
-            responseBuffer.includes('ERROR\r\n') || 
-            responseBuffer.includes('\r\n\r\n')) {
-          
-          window.removeEventListener('atResponse', handleATResponse as EventListener);
-          clearTimeout(responseTimeout);
+            responseBuffer.includes('ERROR\r\n')) {
+          cleanup();
           resolve(responseBuffer.trim());
+          return;
         }
+        
+        // For other responses, wait a short time to see if more data comes
+        responseDelayTimeout = setTimeout(() => {
+          if (responseBuffer.trim().length > 0) {
+            cleanup();
+            resolve(responseBuffer.trim());
+          }
+        }, 200); // Wait 200ms for more data
       };
 
       // Set up response listener

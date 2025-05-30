@@ -79,7 +79,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <Layout title="Electric Vehicle Dashboard">
+    <Layout title="Overview">
       <div className="space-y-6">
         {/* Connection Controls */}
         <div className="flex items-center justify-between p-4 rounded-lg border" 
@@ -130,38 +130,6 @@ export default function DashboardPage() {
           <BMSComponent />
           <InverterComponent />
         </div>
-
-        {/* Status Information */}
-        {isConnected && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-lg border text-center" 
-                 style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)' }}>
-              <div className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
-                {useTelemetryStore.getState().packetsReceived}
-              </div>
-              <div className="text-sm opacity-75">Packets Received</div>
-            </div>
-            
-            <div className="p-4 rounded-lg border text-center" 
-                 style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)' }}>
-              <div className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
-                {useTelemetryStore.getState().lastPacketTime ? 
-                  new Date(useTelemetryStore.getState().lastPacketTime!).toLocaleTimeString() : 
-                  'Never'
-                }
-              </div>
-              <div className="text-sm opacity-75">Last Packet</div>
-            </div>
-            
-            <div className="p-4 rounded-lg border text-center" 
-                 style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)' }}>
-              <div className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
-                {serialClient.isInATCommandMode() ? 'AT Mode' : 'Data Mode'}
-              </div>
-              <div className="text-sm opacity-75">Radio Mode</div>
-            </div>
-          </div>
-        )}
       </div>
     </Layout>
   );
