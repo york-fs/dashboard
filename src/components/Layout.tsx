@@ -1,7 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
 import { ThemeToggle } from './ThemeToggle';
-import { ATCommandConsole } from './ATCommandConsole';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -44,8 +43,8 @@ const Layout: React.FC<LayoutProps> = ({ children, title = 'Electric Vehicle Das
         </div>
       </footer>
 
-      {/* AT Command Console - Floating */}
-      <ATCommandConsole />
+      {/* AT Command Console - Floating (Removed) */}
+      {/* <ATCommandConsole /> */}
     </div>
   );
 };

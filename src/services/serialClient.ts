@@ -58,7 +58,7 @@ export class SerialClient {
       });
 
       // Get the writer for sending AT commands
-      this.writer = this.port.writable?.getWriter() || null;
+      // this.writer = this.port.writable?.getWriter() || null; // Allowing external components to manage writers
       
       useTelemetryStore.getState().setConnectionStatus('connected');
     } catch (error) {
