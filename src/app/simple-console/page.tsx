@@ -75,7 +75,7 @@ export default function SimpleConsolePage() {
 
     setOutput(prev => prev + "Opening port...\n");
     try {
-      await serialClient.open({ baudRate: 57600 });
+      await serialClient.open(57600);
       setIsConnected(true);
       setOutput(prev => prev + "Connected.\n");
       keepReadingRef.current = true;
