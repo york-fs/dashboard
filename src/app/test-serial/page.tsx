@@ -17,11 +17,10 @@ export default function TestSerialPage() {
   const handleRequestPort = async () => {
     try {
       addLog('Requesting serial port...');
-      const port = await client.requestPort();
-      const portInfo = port.getInfo();
+      await client.requestPort();
+      const portInfo = client.getPortInfo();
       addLog(`Port selected: ${JSON.stringify(portInfo)}`);
-      addLog(`Port readable: ${port.readable !== null}`);
-      addLog(`Port writable: ${port.writable !== null}`);
+      addLog(`Port info available: ${portInfo !== null}`);
       setStatus('Port selected');
     } catch (error) {
       addLog(`Error requesting port: ${error}`);
@@ -75,11 +74,10 @@ export default function TestSerialPage() {
     try {
       if (textMode) {
         addLog('Starting to read text data...');
-        await client.startRawReading((data) => {
-          // Convert bytes to text
-          const text = new TextDecoder('utf-8', { fatal: false }).decode(data);
-          addLog(`📨 Received text: "${text.trim()}"`);
-          addLog(`📊 Raw bytes: ${Array.from(data).map((b: number) => `0x${b.toString(16).padStart(2, '0')}`).join(' ')}`);
+        // Note: SerialClient only supports telemetry reading, not raw text
+        addLog('⚠️ Text mode not supported by SerialClient - switching to telemetry mode');
+        await client.startReading((telemetryPacket) => {
+          addLog(`Received telemetry: ${JSON.stringify(telemetryPacket)}`);
         });
       } else {
         addLog('Starting to read telemetry data...');

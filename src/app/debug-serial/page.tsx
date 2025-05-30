@@ -224,12 +224,19 @@ export default function DebugSerialPage() {
       <div className="mt-4 text-sm text-gray-600">
         <h3 className="font-bold mb-2">🔧 Debug Instructions:</h3>
         <ol className="list-decimal list-inside space-y-1">
-          <li>Click "Connect to Serial Port" and select your telemetry radio port</li>
+          <li>Click &quot;Connect to Serial Port&quot; and select your telemetry radio port</li>
           <li>Start your Python vehicle simulator on the other machine</li>
-          <li>Watch the "Parsed Packets" counter - it should increase steadily</li>
-          <li>Look for "✅ Successfully parsed packet" messages in the log</li>
+          <li>Watch the &quot;Parsed Packets&quot; counter - it should increase steadily</li>
+          <li>Look for &quot;✅ Successfully parsed packet&quot; messages in the log</li>
           <li>This version uses the same buffering logic as the main dashboard</li>
         </ol>
+      </div>
+
+      <div className="text-xs space-y-1 opacity-75">
+        <div><strong>Requirements:</strong> Chrome/Edge browser with &quot;Experimental Web Platform features&quot; enabled</div>
+        <div><strong>Hardware:</strong> SiK telemetry radio connected via USB</div>
+        <div><strong>Baud Rate:</strong> 57600 (default for SiK radios)</div>
+        <div><strong>Protocol:</strong> Binary protobuf messages</div>
       </div>
     </div>
   );

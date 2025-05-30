@@ -383,10 +383,9 @@ export default function BMSFocusPage() {
             About BMS (Battery Management System)
           </h3>
           <div className="text-sm space-y-2" style={{ color: 'var(--foreground)' }}>
-            <p>
-              The Battery Management System (BMS) is the critical safety and monitoring system for the high-voltage 
-              battery pack. It continuously monitors cell voltages, temperatures, and currents to ensure safe operation 
-              and optimal performance of the electric vehicle's energy storage system.
+            <p className="text-sm opacity-75">
+              The Battery Management System (BMS) monitors and protects the vehicle&apos;s battery pack. 
+              It ensures safe operation by tracking cell voltages, temperatures, and overall pack health.
             </p>
             <p>
               <strong>Key Functions:</strong> Cell balancing, thermal management, state of charge estimation, 

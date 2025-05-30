@@ -1,9 +1,8 @@
 'use client';
 
-import Layout from '../../components/Layout';
-import { Breadcrumb } from '../../components/Breadcrumb';
-import { useTelemetryStore } from '../../features/telemetry/telemetrySlice';
 import React, { useState, useRef, useEffect } from 'react';
+import { useTelemetryStore } from '../../features/telemetry/telemetrySlice';
+import { Breadcrumb } from '../../components/Breadcrumb';
 import Link from 'next/link';
 
 interface CommandHistoryItem {
@@ -14,26 +13,32 @@ interface CommandHistoryItem {
   status: 'success' | 'error' | 'pending';
 }
 
+// Global serial client instance
+declare global {
+  interface Window {
+    serialClient?: {
+      enterATMode: () => Promise<boolean>;
+      exitATMode: () => Promise<void>;
+      sendATCommand: (command: string) => Promise<string>;
+      isInATCommandMode: () => boolean;
+    };
+  }
+}
+
 export default function ConsolePage() {
   const [command, setCommand] = useState('');
   const [history, setHistory] = useState<CommandHistoryItem[]>([]);
-  const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  
+  const [isExecuting, setIsExecuting] = useState(false);
+  const terminalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const historyRef = useRef<HTMLDivElement>(null);
-  const isConnected = useTelemetryStore(state => state.isConnected);
-  const packetsReceived = useTelemetryStore(state => state.packetsReceived);
+  
+  const { isConnected, packetsReceived, lastPacketTime } = useTelemetryStore();
 
-  const breadcrumbItems = [
-    { label: 'Dashboard', href: '/' },
-    { label: 'AT Console' }
-  ];
-
-  // Auto-scroll to bottom when new history items are added
+  // Auto-scroll terminal when new content is added
   useEffect(() => {
-    if (historyRef.current) {
-      historyRef.current.scrollTop = historyRef.current.scrollHeight;
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
     }
   }, [history]);
 
@@ -48,7 +53,7 @@ export default function ConsolePage() {
     if (!cmd.trim() || !isConnected) return;
 
     const commandId = Date.now().toString();
-    const newHistoryItem: CommandHistoryItem = {
+    const newCommand: CommandHistoryItem = {
       id: commandId,
       command: cmd,
       response: '',
@@ -56,164 +61,104 @@ export default function ConsolePage() {
       status: 'pending'
     };
 
-    setHistory(prev => [...prev, newHistoryItem]);
-    setCommand('');
-    
-    // Add to command history for up/down arrow navigation
-    setCommandHistory(prev => {
-      const newHistory = [cmd, ...prev.filter(h => h !== cmd)].slice(0, 100); // Keep last 100 commands
-      return newHistory;
-    });
-    setHistoryIndex(-1);
+    setHistory(prev => [...prev, newCommand]);
+    setIsExecuting(true);
 
     try {
-      // Simulate AT command sending (replace with actual implementation)
-      await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 700));
-      
-      // Enhanced command simulation with more realistic responses
-      let response = '';
-      let status: 'success' | 'error' = 'success';
-      
-      const upperCmd = cmd.toUpperCase();
-      
-      if (upperCmd === 'AT') {
-        response = 'OK';
-      } else if (upperCmd === 'ATI' || upperCmd.includes('INFO')) {
-        response = `Electric Vehicle Telemetry Unit
-Model: EV-TEL-2024
-Firmware: v2.1.3 (Build 20241201)
-Hardware: Rev C
-Serial Number: EV-TEL-001-2024
-Manufacturer: EV Systems Inc.
-Certification: FCC ID: ABC123, IC: 456-789
-
-OK`;
-      } else if (upperCmd.includes('STATUS') || upperCmd === 'AT+STATUS') {
-        response = `System Status Report:
-Connection: Active (${isConnected ? 'Connected' : 'Disconnected'})
-Data Rate: 100 Hz
-Packets Received: ${packetsReceived.toLocaleString()}
-Uptime: ${Math.floor(Date.now() / 1000 / 60)} minutes
-Memory Usage: 45%
-CPU Usage: 23%
-Temperature: 42°C
-Voltage: 12.3V
-
-OK`;
-      } else if (upperCmd.includes('RESET') || upperCmd === 'AT+RESET') {
-        response = `System reset initiated...
-Stopping telemetry services...
-Clearing buffers...
-Reinitializing hardware...
-System ready.
-
-OK`;
-      } else if (upperCmd.includes('VERSION') || upperCmd === 'AT+VERSION') {
-        response = `AT Command Processor v1.2.0
-Telemetry Engine v2.1.3
-Protocol Stack v1.0.8
-Bootloader v1.1.2
-
-OK`;
-      } else if (upperCmd.includes('HELP') || upperCmd === 'AT+HELP') {
-        response = `Available AT Commands:
-AT              - Test command
-ATI             - Device information
-AT+STATUS       - System status
-AT+VERSION      - Version information
-AT+RESET        - System reset
-AT+HELP         - This help message
-AT+TELEMETRY    - Telemetry control
-AT+CONFIG       - Configuration commands
-AT+DEBUG        - Debug commands
-
-For detailed help on a command, use: AT+HELP=<command>
-
-OK`;
-      } else if (upperCmd.includes('TELEMETRY')) {
-        response = `Telemetry System Status:
-State: ${isConnected ? 'ACTIVE' : 'INACTIVE'}
-Mode: Real-time
-Frequency: 100 Hz
-Components: APPS, BMS, Inverter
-Buffer: 85% full
-Last Update: ${new Date().toISOString()}
-
-OK`;
-      } else if (upperCmd.includes('CONFIG')) {
-        response = `Configuration Settings:
-Baud Rate: 115200
-Data Bits: 8
-Stop Bits: 1
-Parity: None
-Flow Control: None
-Echo: ON
-Verbose: ON
-
-OK`;
-      } else if (upperCmd.includes('DEBUG')) {
-        response = `Debug Information:
-Log Level: INFO
-Debug Port: 8080
-Trace Buffer: 1024 KB
-Error Count: 0
-Warning Count: 2
-Last Error: None
-
-OK`;
-      } else if (upperCmd.includes('ERROR') || upperCmd.includes('FAIL')) {
-        response = 'ERROR: Command execution failed';
-        status = 'error';
-      } else if (upperCmd.startsWith('AT+')) {
-        response = 'ERROR: Unknown command. Type AT+HELP for available commands.';
-        status = 'error';
-      } else {
-        response = 'ERROR: Invalid AT command format';
-        status = 'error';
+      // Get the serial client instance
+      const serialClient = window.serialClient;
+      if (!serialClient) {
+        throw new Error('Serial client not available');
       }
 
+      let response: string;
+
+      // Handle special commands
+      if (cmd === '+++') {
+        // Enter AT mode
+        const success = await serialClient.enterATMode();
+        response = success ? 'OK\r\nEntered AT mode' : 'ERROR\r\nFailed to enter AT mode';
+      } else if (cmd.toUpperCase() === 'ATO') {
+        // Exit AT mode
+        await serialClient.exitATMode();
+        response = 'OK\r\nExited AT mode';
+      } else {
+        // Send regular AT command
+        response = await serialClient.sendATCommand(cmd);
+      }
+
+      // Update the command with the response
       setHistory(prev => prev.map(item => 
         item.id === commandId 
-          ? { ...item, response, status }
+          ? { ...item, response, status: 'success' as const }
           : item
       ));
+
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       setHistory(prev => prev.map(item => 
         item.id === commandId 
-          ? { ...item, response: 'ERROR: Connection timeout', status: 'error' }
+          ? { ...item, response: `ERROR: ${errorMessage}`, status: 'error' as const }
           : item
       ));
+    } finally {
+      setIsExecuting(false);
     }
   };
 
+  const quickCommands = [
+    { label: 'Test', command: 'AT', description: 'Basic AT test' },
+    { label: 'Info', command: 'ATI', description: 'Product identification' },
+    { label: 'Version', command: 'ATI1', description: 'Version string' },
+    { label: 'Board ID', command: 'ATI2', description: 'Board identification' },
+    { label: 'Frequency', command: 'ATI3', description: 'Board frequency' },
+    { label: 'Parameters', command: 'ATI5', description: 'All parameters' },
+    { label: 'TDM Timing', command: 'ATI6', description: 'TDM timing info' },
+    { label: 'RSSI', command: 'ATI7', description: 'RSSI information' },
+    { label: 'RSSI Debug', command: 'AT&T=RSSI', description: 'Toggle RSSI debug' },
+    { label: 'TDM Debug', command: 'AT&T=TDM', description: 'Toggle TDM debug' },
+    { label: 'Factory Reset', command: 'AT&F', description: 'Restore defaults' },
+    { label: 'Save Config', command: 'AT&W', description: 'Write to flash' },
+    { label: 'Exit AT Mode', command: 'ATO', description: 'Return to data mode' },
+  ];
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    sendCommand(command);
+    if (command.trim() && !isExecuting) {
+      sendCommand(command);
+      setCommand('');
+      setHistoryIndex(-1);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (historyIndex < commandHistory.length - 1) {
-        const newIndex = historyIndex + 1;
+      const commands = history.map(h => h.command);
+      if (commands.length > 0) {
+        const newIndex = historyIndex === -1 ? commands.length - 1 : Math.max(0, historyIndex - 1);
         setHistoryIndex(newIndex);
-        setCommand(commandHistory[newIndex]);
+        setCommand(commands[newIndex]);
       }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (historyIndex > 0) {
-        const newIndex = historyIndex - 1;
-        setHistoryIndex(newIndex);
-        setCommand(commandHistory[newIndex]);
-      } else if (historyIndex === 0) {
-        setHistoryIndex(-1);
-        setCommand('');
+      const commands = history.map(h => h.command);
+      if (historyIndex >= 0) {
+        const newIndex = historyIndex + 1;
+        if (newIndex >= commands.length) {
+          setHistoryIndex(-1);
+          setCommand('');
+        } else {
+          setHistoryIndex(newIndex);
+          setCommand(commands[newIndex]);
+        }
       }
     }
   };
 
   const clearHistory = () => {
     setHistory([]);
+    setHistoryIndex(-1);
   };
 
   const formatTimestamp = (date: Date) => {
@@ -226,217 +171,192 @@ OK`;
     });
   };
 
-  const quickCommands = [
-    { label: 'Device Info', command: 'ATI' },
-    { label: 'Status', command: 'AT+STATUS' },
-    { label: 'Version', command: 'AT+VERSION' },
-    { label: 'Help', command: 'AT+HELP' },
-    { label: 'Telemetry', command: 'AT+TELEMETRY' },
-    { label: 'Reset', command: 'AT+RESET' }
+  const getConnectionStatusColor = () => {
+    if (!isConnected) return 'bg-red-500';
+    return window.serialClient?.isInATCommandMode() ? 'bg-yellow-500' : 'bg-green-500';
+  };
+
+  const getConnectionStatusText = () => {
+    if (!isConnected) return 'Disconnected';
+    return window.serialClient?.isInATCommandMode() ? 'AT Mode' : 'Data Mode';
+  };
+
+  const breadcrumbItems = [
+    { label: 'Dashboard', href: '/' },
+    { label: 'AT Console' }
   ];
 
   return (
-    <Layout title="AT Command Console">
-      <div className="space-y-6">
-        {/* Breadcrumb Navigation */}
-        <Breadcrumb items={breadcrumbItems} />
-
-        {/* Header with Back Button and Status */}
-        <div className="flex items-center justify-between">
-          <Link 
-            href="/"
-            className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md border transition-colors hover:opacity-80"
-            style={{ 
-              backgroundColor: 'var(--background-secondary)', 
-              borderColor: 'var(--border)', 
-              color: 'var(--foreground)' 
-            }}
-          >
-            ← Back to Dashboard
-          </Link>
-          
-          <div className="flex items-center space-x-4">
-            <div className="text-sm" style={{ color: 'var(--foreground)' }}>
-              Packets: {packetsReceived.toLocaleString()}
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
+      <div className="container mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="mb-6">
+          <Breadcrumb items={breadcrumbItems} />
+          <div className="flex items-center justify-between mt-4">
+            <div>
+              <h1 className="text-3xl font-bold">SiK Radio AT Console</h1>
+              <p className="text-sm opacity-75 mt-1">
+                Command interface for SiK telemetry radios
+              </p>
             </div>
-            <div className="flex items-center space-x-2">
-              <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <span className="text-sm" style={{ color: 'var(--foreground)' }}>
-                {isConnected ? 'Connected' : 'Disconnected'}
-              </span>
-            </div>
+            <Link 
+              href="/"
+              className="px-4 py-2 rounded-lg transition-colors"
+              style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--foreground)' }}
+            >
+              ← Back to Dashboard
+            </Link>
           </div>
         </div>
 
-        {/* Main Console Interface */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Terminal */}
           <div className="lg:col-span-3">
-            <div className="rounded-lg shadow-md border" style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)' }}>
+            <div className="rounded-lg border" style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)' }}>
               {/* Terminal Header */}
               <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'var(--border)' }}>
-                <div className="flex items-center space-x-2">
-                  <div className="flex space-x-1">
+                <div className="flex items-center gap-3">
+                  <div className="flex gap-2">
                     <div className="w-3 h-3 rounded-full bg-red-500"></div>
                     <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
                     <div className="w-3 h-3 rounded-full bg-green-500"></div>
                   </div>
-                  <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-                    AT Command Terminal
-                  </span>
+                  <span className="font-mono text-sm">SiK AT Terminal</span>
                 </div>
-                <button
-                  onClick={clearHistory}
-                  className="text-sm px-3 py-1 rounded hover:opacity-80"
-                  style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--foreground)' }}
-                >
-                  Clear
-                </button>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${getConnectionStatusColor()}`}></div>
+                    <span className="text-sm">{getConnectionStatusText()}</span>
+                  </div>
+                  <button
+                    onClick={clearHistory}
+                    className="text-sm px-3 py-1 rounded transition-colors"
+                    style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}
+                  >
+                    Clear
+                  </button>
+                </div>
               </div>
 
               {/* Terminal Content */}
               <div 
-                ref={historyRef}
-                className="p-4 font-mono text-sm overflow-y-auto"
-                style={{ 
-                  height: '500px', 
-                  backgroundColor: 'var(--background-secondary)',
-                  color: 'var(--foreground)'
-                }}
+                ref={terminalRef}
+                className="h-96 overflow-y-auto p-4 font-mono text-sm bg-black text-green-400"
               >
-                {history.length === 0 ? (
-                  <div className="space-y-2">
-                    <div style={{ color: 'var(--accent)' }}>
-                      Electric Vehicle Telemetry Console v2.1.3
-                    </div>
-                    <div style={{ color: 'var(--foreground)' }}>
-                      Copyright (c) 2024 EV Systems Inc. All rights reserved.
-                    </div>
-                    <div style={{ color: 'var(--foreground)' }}>
-                      Type 'AT+HELP' for available commands.
-                    </div>
-                    <div style={{ color: 'var(--foreground)' }}>
-                      Connection status: {isConnected ? 'CONNECTED' : 'DISCONNECTED'}
-                    </div>
-                    <br />
+                {history.length === 0 && (
+                  <div className="text-gray-500">
+                    SiK Radio AT Command Console v1.0<br/>
+                    Type &apos;+++&apos; to enter AT mode, &apos;ATO&apos; to exit AT mode<br/>
+                    Use ↑↓ arrows for command history<br/>
+                    <br/>
+                    {!isConnected && <span className="text-red-400">⚠ Radio not connected. Connect to radio first.</span>}
+                    {isConnected && <span className="text-green-400">✓ Radio connected. Ready for commands.</span>}
+                    <br/>
                   </div>
-                ) : null}
+                )}
                 
-                <div className="space-y-1">
-                  {history.map((item) => (
-                    <div key={item.id} className="space-y-1">
-                      <div className="flex items-start space-x-2">
-                        <span style={{ color: 'var(--accent)' }}>
-                          [{formatTimestamp(item.timestamp)}]
-                        </span>
-                        <span style={{ color: 'var(--foreground)' }}>
-                          $ {item.command}
-                        </span>
-                      </div>
-                      <div className="ml-16">
-                        {item.status === 'pending' ? (
-                          <span style={{ color: 'var(--foreground)' }}>Executing...</span>
-                        ) : (
-                          <div className={`whitespace-pre-wrap ${item.status === 'error' ? 'text-red-500' : 'text-green-600'}`}>
-                            {item.response}
-                          </div>
-                        )}
-                      </div>
+                {history.map((item) => (
+                  <div key={item.id} className="mb-3">
+                    <div className="flex items-center gap-2 text-blue-400">
+                      <span className="text-gray-500 text-xs">{formatTimestamp(item.timestamp)}</span>
+                      <span>&gt; {item.command}</span>
                     </div>
-                  ))}
-                </div>
+                    {item.status === 'pending' ? (
+                      <div className="text-yellow-400 text-xs ml-16">Executing command...</div>
+                    ) : (
+                      <div className={`ml-4 whitespace-pre-wrap text-xs ${
+                        item.status === 'error' ? 'text-red-400' : 'text-green-400'
+                      }`}>
+                        {item.response}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
 
               {/* Terminal Input */}
-              <div className="p-4 border-t" style={{ borderColor: 'var(--border)' }}>
-                <form onSubmit={handleSubmit} className="flex space-x-2">
-                  <span className="text-sm font-mono self-center" style={{ color: 'var(--accent)' }}>
-                    $
-                  </span>
+              <form onSubmit={handleSubmit} className="p-4 border-t bg-black" style={{ borderColor: 'var(--border)' }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-green-400 font-mono">&gt;</span>
                   <input
                     ref={inputRef}
                     type="text"
                     value={command}
                     onChange={(e) => setCommand(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder={isConnected ? "Enter AT command..." : "Device not connected"}
-                    disabled={!isConnected}
-                    className="flex-1 px-3 py-2 font-mono rounded border focus:outline-none focus:ring-2"
-                    style={{ 
-                      backgroundColor: 'var(--background-secondary)', 
-                      borderColor: 'var(--border)',
-                      color: 'var(--foreground)'
-                    }}
+                    className="flex-1 bg-transparent text-green-400 font-mono outline-none"
+                    placeholder={isConnected ? "Enter AT command..." : "Connect to radio first"}
+                    disabled={!isConnected || isExecuting}
                   />
-                  <button
-                    type="submit"
-                    disabled={!isConnected || !command.trim()}
-                    className="px-4 py-2 rounded transition-colors disabled:opacity-50"
-                    style={{ 
-                      backgroundColor: 'var(--accent)', 
-                      color: 'white'
-                    }}
-                  >
-                    Send
-                  </button>
-                </form>
-                <div className="text-xs mt-2 opacity-60" style={{ color: 'var(--foreground)' }}>
-                  Use ↑↓ arrows for command history • Ctrl+L to clear • Tab for autocomplete
+                  {isExecuting && (
+                    <span className="text-yellow-400 text-sm">Executing...</span>
+                  )}
                 </div>
-              </div>
+              </form>
             </div>
           </div>
 
-          {/* Quick Commands Panel */}
+          {/* Sidebar */}
           <div className="space-y-6">
-            <div className="rounded-lg shadow-md p-4" style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}>
-              <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
-                Quick Commands
-              </h3>
+            {/* Connection Info */}
+            <div className="rounded-lg border p-4" style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)' }}>
+              <h3 className="font-semibold mb-3">Connection Status</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Status:</span>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${getConnectionStatusColor()}`}></div>
+                    <span>{getConnectionStatusText()}</span>
+                  </div>
+                </div>
+                <div className="flex justify-between">
+                  <span>Packets:</span>
+                  <span>{packetsReceived}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Last Data:</span>
+                  <span>{lastPacketTime ? new Date(lastPacketTime).toLocaleTimeString() : 'Never'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Commands */}
+            <div className="rounded-lg border p-4" style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)' }}>
+              <h3 className="font-semibold mb-3">Quick Commands</h3>
               <div className="space-y-2">
-                {quickCommands.map((cmd) => (
+                {quickCommands.map((cmd, index) => (
                   <button
-                    key={cmd.command}
-                    onClick={() => sendCommand(cmd.command)}
-                    disabled={!isConnected}
-                    className="w-full text-left px-3 py-2 text-sm rounded border transition-colors hover:opacity-80 disabled:opacity-50"
-                    style={{ 
-                      backgroundColor: 'var(--background-secondary)', 
-                      borderColor: 'var(--border)',
-                      color: 'var(--foreground)'
-                    }}
+                    key={index}
+                    onClick={() => !isExecuting && sendCommand(cmd.command)}
+                    disabled={!isConnected || isExecuting}
+                    className="w-full text-left p-2 rounded text-sm transition-colors disabled:opacity-50 hover:opacity-80"
+                    style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}
+                    title={cmd.description}
                   >
-                    <div className="font-medium">{cmd.label}</div>
-                    <div className="text-xs font-mono opacity-60">{cmd.command}</div>
+                    <div className="font-mono">{cmd.command}</div>
+                    <div className="text-xs opacity-60">{cmd.label}</div>
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-lg shadow-md p-4" style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}>
-              <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
-                Connection Info
-              </h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span style={{ color: 'var(--foreground)' }}>Status:</span>
-                  <span className={isConnected ? 'text-green-600' : 'text-red-600'}>
-                    {isConnected ? 'Connected' : 'Disconnected'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span style={{ color: 'var(--foreground)' }}>Packets:</span>
-                  <span style={{ color: 'var(--foreground)' }}>{packetsReceived.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span style={{ color: 'var(--foreground)' }}>Commands:</span>
-                  <span style={{ color: 'var(--foreground)' }}>{history.length}</span>
-                </div>
+            {/* Help */}
+            <div className="rounded-lg border p-4" style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)' }}>
+              <h3 className="font-semibold mb-3">AT Command Help</h3>
+              <div className="text-xs space-y-2 opacity-75">
+                <div><strong>+++</strong> - Enter AT mode</div>
+                <div><strong>ATO</strong> - Exit AT mode</div>
+                <div><strong>AT</strong> - Test command</div>
+                <div><strong>ATI</strong> - Device info</div>
+                <div><strong>ATI5</strong> - All parameters</div>
+                <div><strong>AT&T=RSSI</strong> - RSSI debug</div>
+                <div><strong>AT&F</strong> - Factory reset</div>
+                <div><strong>AT&W</strong> - Save config</div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </Layout>
+    </div>
   );
 } 

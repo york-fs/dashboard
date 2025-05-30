@@ -1,35 +1,46 @@
 'use client';
 
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import APPSComponent from '../features/telemetry/APPSComponent';
 import BMSComponent from '../features/telemetry/BMSComponent';
 import InverterComponent from '../features/telemetry/InverterComponent';
 import { useTelemetryStore } from '../features/telemetry/telemetrySlice';
 import { SerialClient } from '../services/serialClient';
-import { useState } from 'react';
 import Link from 'next/link';
 
 export default function DashboardPage() {
-  const [client] = useState(() => new SerialClient());
+  const [serialClient] = useState(() => new SerialClient());
   const [isConnecting, setIsConnecting] = useState(false);
-  const isConnected = useTelemetryStore(state => state.isConnected);
-  const connectionStatus = useTelemetryStore(state => state.connectionStatus);
-  const packetsReceived = useTelemetryStore(state => state.packetsReceived);
-  const lastError = useTelemetryStore(state => state.lastError);
+  const { isConnected, connectionStatus, lastError } = useTelemetryStore();
+
+  // Make serial client available globally for AT console
+  useEffect(() => {
+    window.serialClient = serialClient;
+    
+    // Cleanup function to close connection when component unmounts
+    return () => {
+      delete window.serialClient;
+      if (serialClient.isConnected()) {
+        serialClient.close().catch(console.error);
+      }
+    };
+  }, [serialClient]);
 
   const handleConnect = async () => {
+    if (isConnecting || isConnected) return;
+    
     setIsConnecting(true);
     try {
-      // Request port selection
-      await client.requestPort();
+      await serialClient.requestPort();
+      await serialClient.open();
       
-      // Open the connection
-      await client.open(57600);
-      
-      // Start reading telemetry data
-      await client.startReading((telemetryPacket) => {
-        // Data is automatically dispatched to the store by SerialClient
-        console.log('Received telemetry packet:', telemetryPacket);
+      // Start reading telemetry data (don't await this as it's a continuous process)
+      serialClient.startReading((packet) => {
+        // Packet is automatically handled by the SerialClient and sent to the store
+        console.log('Received telemetry packet:', packet);
+      }).catch(error => {
+        console.error('Reading error:', error);
       });
       
     } catch (error) {
@@ -41,104 +52,117 @@ export default function DashboardPage() {
 
   const handleDisconnect = async () => {
     try {
-      await client.close();
+      await serialClient.close();
     } catch (error) {
       console.error('Disconnect failed:', error);
     }
   };
 
+  const getConnectionStatusText = () => {
+    switch (connectionStatus) {
+      case 'connecting': return 'Connecting...';
+      case 'connected': return 'Connected';
+      case 'disconnected': return 'Disconnected';
+      case 'error': return 'Error';
+      default: return 'Unknown';
+    }
+  };
+
+  const getConnectionStatusColor = () => {
+    switch (connectionStatus) {
+      case 'connecting': return 'bg-yellow-500';
+      case 'connected': return 'bg-green-500';
+      case 'disconnected': return 'bg-gray-500';
+      case 'error': return 'bg-red-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
   return (
-    <Layout title="Electric Car Dashboard">
+    <Layout title="Electric Vehicle Dashboard">
       <div className="space-y-6">
         {/* Connection Controls */}
-        <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                <span className="text-sm" style={{ color: 'var(--foreground)' }}>
-                  {isConnected ? 'Connected' : 'Disconnected'}
-                </span>
-              </div>
-              <div className="text-sm" style={{ color: 'var(--foreground)' }}>
-                Packets: {packetsReceived.toLocaleString()}
-              </div>
+        <div className="flex items-center justify-between p-4 rounded-lg border" 
+             style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)' }}>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${getConnectionStatusColor()}`}></div>
+              <span className="font-medium">{getConnectionStatusText()}</span>
             </div>
-            
-            <div className="flex items-center space-x-3">
-              <Link 
-                href="/console"
-                className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md border transition-colors hover:opacity-80"
-                style={{ 
-                  backgroundColor: 'var(--background-secondary)', 
-                  borderColor: 'var(--border)', 
-                  color: 'var(--foreground)' 
-                }}
-              >
-                <span className="mr-2">⚡</span>
-                AT Console
-              </Link>
+            {lastError && (
+              <span className="text-red-500 text-sm">Error: {lastError}</span>
+            )}
+          </div>
+          
+          <div className="flex gap-2">
+            {!isConnected ? (
               <button
                 onClick={handleConnect}
-                disabled={isConnected}
-                className="px-4 py-2 text-sm font-medium rounded-md transition-colors disabled:opacity-50"
-                style={{ 
-                  backgroundColor: isConnected ? 'var(--background-secondary)' : 'var(--accent)', 
-                  color: isConnected ? 'var(--foreground)' : 'white',
-                  border: `1px solid ${isConnected ? 'var(--border)' : 'var(--accent)'}`
-                }}
+                disabled={isConnecting}
+                className="px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                style={{ backgroundColor: 'var(--accent)', color: 'white' }}
               >
-                {isConnected ? 'Connected' : 'Connect'}
+                {isConnecting ? 'Connecting...' : 'Connect to Radio'}
               </button>
-            </div>
+            ) : (
+              <button
+                onClick={handleDisconnect}
+                className="px-4 py-2 rounded-lg transition-colors"
+                style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
+              >
+                Disconnect
+              </button>
+            )}
+            
+            <Link
+              href="/console"
+              className="px-4 py-2 rounded-lg transition-colors"
+              style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
+            >
+              AT Console
+            </Link>
           </div>
-
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="flex justify-between">
-              <span style={{ color: 'var(--foreground)' }}>Packets Received:</span>
-              <span className="font-mono" style={{ color: 'var(--foreground)' }}>{packetsReceived.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between">
-              <span style={{ color: 'var(--foreground)' }}>Status:</span>
-              <span className={`font-medium ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
-                {isConnected ? 'Connected' : 'Disconnected'}
-              </span>
-            </div>
-          </div>
-          
-          {lastError && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-              <strong>Last Error:</strong> {lastError}
-            </div>
-          )}
-          
-          {!isConnected && (
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">
-              <strong>Requirements:</strong> Use Chrome or Edge browser with a USB serial device (SiK telemetry radio) connected.
-              <br />
-              <strong>Troubleshooting:</strong> Visit <a href="/test-serial" className="underline">/test-serial</a> for detailed diagnostics.
-            </div>
-          )}
         </div>
 
-        {/* Telemetry Data Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        {/* Telemetry Components Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <APPSComponent />
           <BMSComponent />
           <InverterComponent />
         </div>
 
-        {/* Data Not Available Notice */}
-        {!isConnected && (
-          <div className="text-center py-12" style={{ color: 'var(--foreground)' }}>
-            <div className="text-xl mb-2">🔌 Not Connected</div>
-            <div className="text-lg mb-4">Connect to telemetry source to view real-time data</div>
-            <div className="text-sm">
-              Each component above will populate with live data once connected to your SiK telemetry radio.
+        {/* Status Information */}
+        {isConnected && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 rounded-lg border text-center" 
+                 style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)' }}>
+              <div className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
+                {useTelemetryStore.getState().packetsReceived}
+              </div>
+              <div className="text-sm opacity-75">Packets Received</div>
+            </div>
+            
+            <div className="p-4 rounded-lg border text-center" 
+                 style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)' }}>
+              <div className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
+                {useTelemetryStore.getState().lastPacketTime ? 
+                  new Date(useTelemetryStore.getState().lastPacketTime!).toLocaleTimeString() : 
+                  'Never'
+                }
+              </div>
+              <div className="text-sm opacity-75">Last Packet</div>
+            </div>
+            
+            <div className="p-4 rounded-lg border text-center" 
+                 style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)' }}>
+              <div className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
+                {serialClient.isInATCommandMode() ? 'AT Mode' : 'Data Mode'}
+              </div>
+              <div className="text-sm opacity-75">Radio Mode</div>
             </div>
           </div>
         )}
-    </div>
+      </div>
     </Layout>
   );
 }
