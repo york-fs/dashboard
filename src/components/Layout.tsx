@@ -16,7 +16,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title = 'Electric Vehicle Das
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
               <Link href="/" className="text-xl font-bold hover:opacity-80 transition-opacity" style={{ color: 'var(--foreground)' }}>
-                EV Dashboard
+                <img src="/yfs.png" alt="York Formula Student Logo" className="h-8 w-auto" />
               </Link>
             </div>
             <div className="flex items-center space-x-4">
