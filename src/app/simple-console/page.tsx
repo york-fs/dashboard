@@ -24,13 +24,19 @@ export default function SimpleConsolePage() {
       return;
     }
 
+    setOutput(prev => prev + "Read loop initiated.\n");
     const reader = serialClient.port.readable.getReader();
+    let doneReason = ""; // To track why the loop exited for logging
+
     try {
       while (keepReadingRef.current) {
         const { value, done } = await reader.read();
+        setOutput(prev => prev + `Read attempt: done=${done}, value bytes=${value ? value.byteLength : 0}\n`);
+
         if (done) {
-          setOutput(prev => prev + "Reader stream closed.\n");
-          keepReadingRef.current = false;
+          setOutput(prev => prev + "Read loop terminated by reader (done=true).\n");
+          doneReason = "done=true";
+          keepReadingRef.current = false; // Ensure loop condition breaks
           break;
         }
         if (value) {
@@ -39,19 +45,23 @@ export default function SimpleConsolePage() {
         }
       }
     } catch (error) {
-      setOutput(prev => prev + `Error during read loop: ${error instanceof Error ? error.message : String(error)}\n`);
-      keepReadingRef.current = false;
-      // Consider setting isConnected to false if the error is critical
-      // For now, just log and stop reading. The user might need to disconnect/reconnect.
+      setOutput(prev => prev + `READ LOOP CRITICAL ERROR: ${error instanceof Error ? error.message : String(error)}\n`);
+      doneReason = "error";
+      keepReadingRef.current = false; // Stop loop on error
     } finally {
+      setOutput(prev => prev + "Exiting read loop. Releasing lock.\n");
       reader.releaseLock();
       setOutput(prev => prev + "Reader released.\n");
+      if (!keepReadingRef.current && doneReason === "") { // Loop exited due to keepReadingRef
+        setOutput(prev => prev + "Read loop exited because keepReadingRef became false.\n");
+      } else if (doneReason === "error") {
+        setOutput(prev => prev + "Read loop exited due to an error.\n");
+      }
       // If the loop was stopped externally (e.g. by disconnect) and port is still technically open,
       // but we are no longer reading, we might want to reflect this.
       // However, handleDisconnect should set isConnected to false.
-      if (!keepReadingRef.current && isConnected){
-        // This case implies reading stopped but we didn't explicitly disconnect.
-        // This might happen if serialClient.close() was called elsewhere or port was lost.
+      if (!keepReadingRef.current && isConnected && doneReason !== "done=true" && doneReason !== "error"){
+        // This case implies reading stopped but we didn't explicitly disconnect or error out.
         // setIsConnected(false); // Let handleDisconnect manage this primarily.
       }
     }
@@ -126,13 +136,16 @@ export default function SimpleConsolePage() {
       return;
     }
 
-    setOutput(prev => prev + `> ${command}\n`);
+    setOutput(prev => prev + `Input command: ${command}\n`);
+    const commandToEncode = command + '\r\n';
+    setOutput(prev => prev + `Sending encoded: ${commandToEncode.replace(/\r/g, '<CR>').replace(/\n/g, '<LF>')}\n`);
+
     const writer = serialClient.port.writable.getWriter();
     try {
-      const data = new TextEncoder().encode(command + '\r\n'); // Common to send CR+LF
+      const data = new TextEncoder().encode(commandToEncode);
       await writer.write(data);
     } catch (error) {
-      setOutput(prev => prev + `Error writing to port: ${error instanceof Error ? error.message : String(error)}\n`);
+      setOutput(prev => prev + `SEND COMMAND ERROR: ${error instanceof Error ? error.message : String(error)}\n`);
     } finally {
       writer.releaseLock();
     }
