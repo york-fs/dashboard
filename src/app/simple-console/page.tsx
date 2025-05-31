@@ -10,88 +10,79 @@ export default function SimpleConsolePage() {
   const [output, setOutput] = useState('');
   const outputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Initialize SerialClient on component mount
+  // Initialize SerialClient on component mount - use global one if available
   useEffect(() => {
-    setSerialClient(new SerialClient());
+    const globalClient = (window as any).serialClient as SerialClient | undefined;
+    if (globalClient) {
+      setSerialClient(globalClient);
+      setIsConnected(globalClient.isInATCommandMode());
+      setOutput(prev => prev + "Using existing serial client from main dashboard.\n" +
+                                 (globalClient.isConnected() ? "Telemetry simulation is active.\n" : "Telemetry simulation is not active. Start it from dashboard.\n") +
+                                 "Ready for AT commands.\n");
+    } else {
+      setOutput(prev => prev + "Error: Serial client not found. Please navigate to the main dashboard first.\n");
+    }
   }, []);
 
   // Listen for AT command responses
   useEffect(() => {
     const handleATResponse = (event: CustomEvent) => {
       const response = event.detail;
-      setOutput(prev => prev + `Response: ${response}\n`);
+      setOutput(prev => prev + response); // Append raw response
     };
 
-    // window.addEventListener('atResponse', handleATResponse as EventListener);
+    window.addEventListener('atResponse', handleATResponse as EventListener);
     
     return () => {
-      // window.removeEventListener('atResponse', handleATResponse as EventListener);
+      window.removeEventListener('atResponse', handleATResponse as EventListener);
     };
-  }, []);
+  }, [serialClient]);
 
-  const handleConnect = async () => {
+  const handleEnterATMode = async () => {
     if (!serialClient) {
-      setOutput(prev => prev + "Error: Serial client not initialized.\n");
+      setOutput(prev => prev + "Error: Serial client not available.\n");
       return;
     }
-
-    setOutput(prev => prev + "Requesting port...\n");
-    try {
-      await serialClient.requestPort();
-      setOutput(prev => prev + "Port selected.\n");
-    } catch (error) {
-      setOutput(prev => prev + `Error requesting port: ${error instanceof Error ? error.message : String(error)}\n`);
-      setIsConnected(false);
-      return;
+    if (serialClient.isInATCommandMode()) {
+       setOutput(prev => prev + "Already in AT mode.\n"); return;
     }
-
-    setOutput(prev => prev + "Opening port...\n");
+    setOutput(prev => prev + "Entering AT mode...\n");
     try {
-      await serialClient.open(57600);
-      setIsConnected(true);
-      setOutput(prev => prev + "Connected.\n");
-      
-      // Start reading for responses
-      await serialClient.startReading();
-      setOutput(prev => prev + "Started reading for responses.\n");
+      await serialClient.enterATMode(); // This will dispatch "OK" via event
+      setIsConnected(true); // Reflects AT mode status
     } catch (error) {
-      setOutput(prev => prev + `Error opening port: ${error instanceof Error ? error.message : String(error)}\n`);
+      setOutput(prev => prev + `Error entering AT mode: ${error instanceof Error ? error.message : String(error)}\n`);
       setIsConnected(false);
     }
   };
 
-  const handleDisconnect = async () => {
-    if (!serialClient) {
-      setOutput(prev => prev + "Serial client not initialized. Cannot disconnect.\n");
-      setIsConnected(false);
-      return;
+  const handleExitATMode = async () => {
+    if (!serialClient || !serialClient.isInATCommandMode()) {
+       setOutput(prev => prev + "Not in AT mode or client not available.\n"); return;
     }
-
-    setOutput(prev => prev + "Disconnecting...\n");
+    setOutput(prev => prev + "Exiting AT mode...\n");
     try {
-      await serialClient.close();
-      setOutput(prev => prev + "Disconnected.\n");
+      await serialClient.exitATMode(); // This will dispatch "OK" via event
+      setIsConnected(false); // Reflects AT mode status
     } catch (error) {
-      setOutput(prev => prev + `Error disconnecting: ${error instanceof Error ? error.message : String(error)}\n`);
-    } finally {
-      setIsConnected(false);
+      setOutput(prev => prev + `Error exiting AT mode: ${error instanceof Error ? error.message : String(error)}\n`);
     }
   };
 
   const handleSendCommand = async () => {
-    if (!serialClient || !isConnected) {
-      setOutput(prev => prev + "Error: Not connected.\n");
+    if (!serialClient || !isConnected) { // isConnected now means isInATCommandMode
+      setOutput(prev => prev + "Error: Not in AT mode.\n");
       return;
     }
     if (command.trim() === '') {
       return;
     }
 
-    setOutput(prev => prev + `Sending AT command: ${command}\n`);
+    setOutput(prev => prev + `AT> ${command}\n`); // Echo command
 
     try {
-      const response = await serialClient.sendATCommand(command);
-      setOutput(prev => prev + `Command response: ${response}\n`);
+      // Response is handled by the 'atResponse' event listener
+      await serialClient.sendATCommand(command);
     } catch (error) {
       setOutput(prev => prev + `AT command error: ${error instanceof Error ? error.message : String(error)}\n`);
     }
@@ -111,16 +102,16 @@ export default function SimpleConsolePage() {
       <h1>Simple SiK Radio Console</h1>
       
       <div style={{ marginBottom: '10px' }}>
-        <button onClick={handleConnect} disabled={isConnected} style={{ marginRight: '10px' }}>
-          Connect
+        <button onClick={handleEnterATMode} disabled={isConnected} style={{ marginRight: '10px' }}>
+          Enter AT Mode
         </button>
-        <button onClick={handleDisconnect} disabled={!isConnected}>
-          Disconnect
+        <button onClick={handleExitATMode} disabled={!isConnected}>
+          Exit AT Mode
         </button>
       </div>
       
       <div style={{ marginBottom: '10px' }}>
-        Status: {isConnected ? 'Connected' : 'Disconnected'}
+        Status: {isConnected ? 'In AT Mode' : 'Not in AT Mode'}
       </div>
       
       <textarea
@@ -128,6 +119,7 @@ export default function SimpleConsolePage() {
         readOnly
         value={output}
         style={{ width: '100%', height: '300px', border: '1px solid #ccc', marginBottom: '10px', whiteSpace: 'pre-wrap' }}
+        placeholder="Console output will appear here..."
       />
       
       <div style={{ display: 'flex' }}>
@@ -135,11 +127,12 @@ export default function SimpleConsolePage() {
           type="text"
           value={command}
           onChange={(e) => setCommand(e.target.value)}
-          onKeyPress={(e) => { if (e.key === 'Enter') handleSendCommand(); }}
+          onKeyPress={(e) => { if (e.key === 'Enter' && isConnected) handleSendCommand(); }}
           style={{ flexGrow: 1, marginRight: '10px', padding: '5px' }}
-          placeholder="Enter AT command (e.g., ATI, ATS1?)"
+          placeholder={isConnected ? "Enter AT command (e.g., ATI, ATS1?)" : "Enter AT mode to send commands"}
+          disabled={!isConnected}
         />
-        <button onClick={handleSendCommand} disabled={!isConnected}>
+        <button onClick={handleSendCommand} disabled={!isConnected || command.trim() === ''}>
           Send
         </button>
       </div>

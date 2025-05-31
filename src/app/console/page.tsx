@@ -14,80 +14,76 @@ export default function ConsolePage() {
 
   // Initialize SerialClient on component mount - use global one if available
   useEffect(() => {
-    const globalClient = (window as any).serialClient;
+    const globalClient = (window as any).serialClient as SerialClient | undefined;
     if (globalClient) {
       setSerialClient(globalClient);
-      setIsConnected(globalClient.isConnected());
-      setOutput(prev => prev + "Using existing connection from main dashboard.\n");
+      // Check if AT mode is active for the specific console "connected" state
+      setIsConnected(globalClient.isInATCommandMode());
+      setOutput(prev => prev + "Using existing serial client from main dashboard.\n" +
+                                 (globalClient.isConnected() ? "Telemetry simulation is active.\n" : "Telemetry simulation is not active. Start it from dashboard.\n") +
+                                 "Ready for AT commands.\n");
     } else {
-      setSerialClient(new SerialClient());
-      setOutput(prev => prev + "Initialized new serial client.\n");
+      setOutput(prev => prev + "Error: Serial client not found. Please navigate to the main dashboard first.\n");
+      // Optionally disable controls if no globalClient
     }
   }, []);
 
-  const handleConnect = async () => {
+  // AT Response Event Listener
+  useEffect(() => {
+    const handleATResponse = (event: CustomEvent) => {
+      setOutput(prev => prev + event.detail); // Append raw response
+    };
+    window.addEventListener('atResponse', handleATResponse as EventListener);
+    return () => {
+      window.removeEventListener('atResponse', handleATResponse as EventListener);
+    };
+  }, [serialClient]); // Re-run if serialClient instance changes (though it shouldn't here)
+
+  const handleEnterATMode = async () => {
     if (!serialClient) {
-      setOutput(prev => prev + "Error: Serial client not initialized.\n");
+      setOutput(prev => prev + "Error: Serial client not available.\n");
       return;
     }
-
-    setOutput(prev => prev + "Requesting port...\n");
-    try {
-      await serialClient.requestPort();
-      setOutput(prev => prev + "Port selected.\n");
-    } catch (error) {
-      setOutput(prev => prev + `Error requesting port: ${error instanceof Error ? error.message : String(error)}\n`);
-      setIsConnected(false);
-      return;
+    if (serialClient.isInATCommandMode()) {
+       setOutput(prev => prev + "Already in AT mode.\n"); return;
     }
-
-    setOutput(prev => prev + "Opening port...\n");
+    setOutput(prev => prev + "Entering AT mode...\n");
     try {
-      await serialClient.open(57600);
-      setIsConnected(true);
-      setOutput(prev => prev + "Connected.\n");
-      
-      // Start reading for responses
-      await serialClient.startReading();
-      setOutput(prev => prev + "Started reading for responses.\n");
+      await serialClient.enterATMode(); // This will dispatch "OK" via event
+      setIsConnected(true); // Reflects AT mode status
     } catch (error) {
-      setOutput(prev => prev + `Error opening port: ${error instanceof Error ? error.message : String(error)}\n`);
+      setOutput(prev => prev + `Error entering AT mode: ${error instanceof Error ? error.message : String(error)}\n`);
       setIsConnected(false);
     }
   };
 
-  const handleDisconnect = async () => {
-    if (!serialClient) {
-      setOutput(prev => prev + "Serial client not initialized. Cannot disconnect.\n");
-      setIsConnected(false);
-      return;
+  const handleExitATMode = async () => {
+    if (!serialClient || !serialClient.isInATCommandMode()) {
+       setOutput(prev => prev + "Not in AT mode or client not available.\n"); return;
     }
-
-    setOutput(prev => prev + "Disconnecting...\n");
+    setOutput(prev => prev + "Exiting AT mode...\n");
     try {
-      await serialClient.close();
-      setOutput(prev => prev + "Disconnected.\n");
+      await serialClient.exitATMode(); // This will dispatch "OK" via event
+      setIsConnected(false); // Reflects AT mode status
     } catch (error) {
-      setOutput(prev => prev + `Error disconnecting: ${error instanceof Error ? error.message : String(error)}\n`);
-    } finally {
-      setIsConnected(false);
+      setOutput(prev => prev + `Error exiting AT mode: ${error instanceof Error ? error.message : String(error)}\n`);
     }
   };
 
   const handleSendCommand = async () => {
-    if (!serialClient || !isConnected) {
-      setOutput(prev => prev + "Error: Not connected.\n");
+    if (!serialClient || !isConnected) { // isConnected now means isInATCommandMode
+      setOutput(prev => prev + "Error: Not in AT mode.\n");
       return;
     }
     if (command.trim() === '') {
       return;
     }
 
-    setOutput(prev => prev + `Sending AT command: ${command}\n`);
+    setOutput(prev => prev + `AT> ${command}\n`); // Echo command
 
     try {
-      const response = await serialClient.sendATCommand(command);
-      setOutput(prev => prev + `Command response: ${response}\n`);
+      // Response is handled by the 'atResponse' event listener
+      await serialClient.sendATCommand(command);
     } catch (error) {
       setOutput(prev => prev + `AT command error: ${error instanceof Error ? error.message : String(error)}\n`);
     }
@@ -120,24 +116,24 @@ export default function ConsolePage() {
         <div className="flex items-center gap-4 p-4 rounded-lg border" 
              style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)' }}>
           <button 
-            onClick={handleConnect} 
-            disabled={isConnected}
+            onClick={handleEnterATMode}
+            disabled={isConnected} // Disabled if already in AT mode
             className="px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
             style={{ backgroundColor: 'var(--accent)', color: 'white' }}
           >
-            Connect
+            Enter AT Mode
           </button>
           <button 
-            onClick={handleDisconnect} 
-            disabled={!isConnected}
+            onClick={handleExitATMode}
+            disabled={!isConnected} // Disabled if not in AT mode
             className="px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
             style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
           >
-            Disconnect
+            Exit AT Mode
           </button>
           <div className="flex items-center gap-2">
             <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-gray-500'}`}></div>
-            <span className="font-medium">{isConnected ? 'Connected' : 'Disconnected'}</span>
+            <span className="font-medium">{isConnected ? 'In AT Mode' : 'Not in AT Mode'}</span>
           </div>
         </div>
 
@@ -152,7 +148,7 @@ export default function ConsolePage() {
               backgroundColor: 'var(--background)', 
               borderColor: 'var(--border)', 
               color: 'var(--foreground)',
-              whiteSpace: 'pre-wrap'
+                whiteSpace: 'pre-wrap' // Ensure newlines are preserved
             }}
             placeholder="Console output will appear here..."
           />
@@ -163,18 +159,19 @@ export default function ConsolePage() {
               type="text"
               value={command}
               onChange={(e) => setCommand(e.target.value)}
-              onKeyPress={(e) => { if (e.key === 'Enter') handleSendCommand(); }}
+              onKeyPress={(e) => { if (e.key === 'Enter' && isConnected) handleSendCommand(); }}
               className="flex-1 p-3 rounded-lg border"
               style={{ 
                 backgroundColor: 'var(--background)', 
                 borderColor: 'var(--border)', 
                 color: 'var(--foreground)'
               }}
-              placeholder="Enter AT command (e.g., ATI, ATS1?)"
+              placeholder={isConnected ? "Enter AT command (e.g., ATI, ATS1?)" : "Enter AT mode to send commands"}
+              disabled={!isConnected} // Disable input if not in AT mode
             />
             <button 
               onClick={handleSendCommand} 
-              disabled={!isConnected}
+              disabled={!isConnected || command.trim() === ''} // Also disable if command is empty
               className="px-6 py-3 rounded-lg transition-colors disabled:opacity-50"
               style={{ backgroundColor: 'var(--accent)', color: 'white' }}
             >

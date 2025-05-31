@@ -6,104 +6,62 @@
 
 import { yorkfs } from '../protobuf/telemetry_pb.js';
 import { useTelemetryStore } from '../features/telemetry/telemetrySlice';
+import { generateMockAPPSData, generateMockBMSData, generateMockInverterData } from './mockDataGenerator';
 
 // Extract protobuf classes
-const { TelemetryPacket } = yorkfs.dashboard;
+// Ensure TelemetryPacket, APPSData, BMSData, InverterData are all available
+const { TelemetryPacket, APPSData, BMSData, InverterData } = yorkfs.dashboard;
 
 export class SerialClient {
-  private port: SerialPort | null = null;
-  private reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
-  private writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
-  private isReading = false;
-  private dataBuffer = new Uint8Array(0);
+  private isReading = false; // Represents if telemetry simulation is active
   private isInATMode = false;
   private atModeTimeout: NodeJS.Timeout | null = null;
+  private simulationIntervalId: NodeJS.Timeout | null = null;
+  private simulationPacketTypeCounter = 0;
+  private mockSRegisters: Map<number, number> = new Map([
+    [0, 0],
+    [1, 0],
+    [2, 43],
+    [3, 30],
+    [4, 1],
+    [5, 1]
+  ]);
 
   constructor() {
-    // Initialize the store reference
+    // Constructor is now simplified as Web Serial specific setup is removed.
+    console.log('SerialClient: Initialized in simulation-only mode.');
   }
 
   /**
-   * Request access to a serial port using Web Serial API
+   * Starts the telemetry simulation.
+   * Renamed from open() and simplified.
    */
-  async requestPort(): Promise<void> {
-    if (!('serial' in navigator)) {
-      throw new Error('Web Serial API not supported');
-    }
+  async startTelemetrySimulation(): Promise<void> {
+    console.log("Starting telemetry simulation.");
+    useTelemetryStore.getState().setConnectionStatus('connecting');
 
-    try {
-      this.port = await navigator.serial.requestPort();
-      useTelemetryStore.getState().setConnectionStatus('connecting');
-    } catch (error) {
-      useTelemetryStore.getState().setConnectionStatus('error', `Port selection failed: ${error}`);
-      throw error;
-    }
+    this.startSimulation(); // This method sets isReading = true and starts the interval
+
+    useTelemetryStore.getState().setConnectionStatus('connected');
+    return Promise.resolve();
   }
 
   /**
-   * Open the serial port with specified baud rate
-   */
-  async open(baudRate: number = 57600): Promise<void> {
-    if (!this.port) {
-      throw new Error('No port selected');
-    }
-
-    try {
-      await this.port.open({ 
-        baudRate,
-        dataBits: 8,
-        stopBits: 1,
-        parity: 'none',
-        flowControl: 'none'
-      });
-
-      // Get the writer for sending AT commands
-      this.writer = this.port.writable?.getWriter() || null;
-      
-      useTelemetryStore.getState().setConnectionStatus('connected');
-    } catch (error) {
-      useTelemetryStore.getState().setConnectionStatus('error', `Connection failed: ${error}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Close the serial port and clean up resources
+   * Stops the telemetry simulation and cleans up.
+   * Simplified version of close().
    */
   async close(): Promise<void> {
+    console.log("Stopping telemetry simulation.");
     this.isReading = false;
-    
-    // Exit AT mode if we're in it
+
+    if (this.simulationIntervalId) {
+      clearInterval(this.simulationIntervalId);
+      this.simulationIntervalId = null;
+    }
+
+    // AT mode related cleanup (will be further adapted in next steps)
     if (this.isInATMode) {
       await this.exitATMode();
-    }
-
-    if (this.reader) {
-      try {
-        await this.reader.cancel();
-        this.reader.releaseLock();
-      } catch (error) {
-        console.warn('Error cleaning up reader:', error);
-      }
-      this.reader = null;
-    }
-
-    if (this.writer) {
-      try {
-        this.writer.releaseLock();
-      } catch (error) {
-        console.warn('Error cleaning up writer:', error);
-      }
-      this.writer = null;
-    }
-
-    if (this.port) {
-      try {
-        await this.port.close();
-      } catch (error) {
-        console.warn('Error closing port:', error);
-      }
-      this.port = null;
     }
 
     if (this.atModeTimeout) {
@@ -112,142 +70,52 @@ export class SerialClient {
     }
 
     useTelemetryStore.getState().setConnectionStatus('disconnected');
+    return Promise.resolve();
   }
 
   /**
-   * Start continuous reading from the serial port
+   * Start data simulation. This method remains largely the same.
    */
-  async startReading(onTelemetryPacket?: (packet: yorkfs.dashboard.ITelemetryPacket) => void): Promise<void> {
-    if (!this.port || !this.port.readable) {
-      throw new Error('Port not open or readable');
+  private startSimulation(): void {
+    if (this.simulationIntervalId) {
+      clearInterval(this.simulationIntervalId);
+      this.simulationIntervalId = null;
     }
 
-    this.reader = this.port.readable.getReader();
-    this.isReading = true;
+    this.isReading = true; // Or a specific simulation flag if needed
 
-    // Use a separate async function to avoid blocking the main thread
-    this.readLoop(onTelemetryPacket);
-  }
+    this.simulationIntervalId = setInterval(() => {
+      let packetPayload: any;
+      let packetType: yorkfs.dashboard.TelemetryPacket.DataType;
 
-  /**
-   * Async reading loop that doesn't block the main thread
-   */
-  private async readLoop(onTelemetryPacket?: (packet: yorkfs.dashboard.ITelemetryPacket) => void): Promise<void> {
-    try {
-      while (this.isReading && this.reader) {
-        const { value, done } = await this.reader.read();
-        
-        if (done) {
-          console.log('Serial reading completed');
+      switch (this.simulationPacketTypeCounter) {
+        case 0:
+          packetPayload = { appsData: generateMockAPPSData() };
+          packetType = TelemetryPacket.DataType.DATA_TYPE_APPS;
           break;
-        }
-
-        if (value) {
-          // If we're in AT mode, handle AT responses differently
-          if (this.isInATMode) {
-            this.handleATResponse(value);
-          } else {
-            // Normal telemetry data processing
-            this.processIncomingData(value, onTelemetryPacket);
-          }
-        }
-
-        // Yield control back to the event loop to prevent blocking
-        await new Promise(resolve => setTimeout(resolve, 0));
-      }
-    } catch (readError) {
-      console.error('Reading error:', readError);
-      useTelemetryStore.getState().setConnectionStatus('error', `Reading error: ${readError}`);
-    } finally {
-      // Clean up reader
-      if (this.reader) {
-        try {
-          this.reader.releaseLock();
-        } catch (e) {
-          console.warn('Error releasing reader lock:', e);
-        }
-        this.reader = null;
-      }
-    }
-  }
-
-  /**
-   * Handle AT command responses
-   */
-  private handleATResponse(data: Uint8Array): void {
-    // Convert bytes to string for AT responses
-    const response = new TextDecoder().decode(data);
-    
-    // Dispatch AT response to any listeners
-    const event = new CustomEvent('atResponse', { detail: response });
-    window.dispatchEvent(event);
-  }
-
-  /**
-   * Process incoming telemetry data
-   */
-  private processIncomingData(data: Uint8Array, onTelemetryPacket?: (packet: yorkfs.dashboard.ITelemetryPacket) => void): void {
-    // Append new data to buffer
-    const newBuffer = new Uint8Array(this.dataBuffer.length + data.length);
-    newBuffer.set(this.dataBuffer);
-    newBuffer.set(data, this.dataBuffer.length);
-    this.dataBuffer = newBuffer;
-
-    // Prevent buffer from growing too large
-    if (this.dataBuffer.length > 10000) {
-      console.warn('Data buffer too large, clearing');
-      this.dataBuffer = new Uint8Array(0);
-      return;
-    }
-
-    // Try to parse complete packets (limit iterations to prevent infinite loops)
-    let iterations = 0;
-    const maxIterations = 10;
-    
-    while (this.dataBuffer.length > 0 && iterations < maxIterations) {
-      iterations++;
-      
-      try {
-        // Try to decode a packet from the buffer
-        const packet = TelemetryPacket.decode(this.dataBuffer);
-        
-        // If we successfully decoded a packet, process it
-        if (onTelemetryPacket) {
-          onTelemetryPacket(packet);
-        }
-        useTelemetryStore.getState().updateTelemetryPacket(packet);
-        
-        // Calculate how many bytes were consumed
-        const encodedSize = TelemetryPacket.encode(packet).finish().length;
-        
-        // Ensure we're making progress
-        if (encodedSize === 0) {
-          console.warn('Zero-length packet detected, clearing buffer');
-          this.dataBuffer = new Uint8Array(0);
+        case 1:
+          packetPayload = { bmsData: generateMockBMSData() };
+          packetType = TelemetryPacket.DataType.DATA_TYPE_BMS;
           break;
-        }
-        
-        // Remove processed bytes from buffer
-        this.dataBuffer = this.dataBuffer.slice(encodedSize);
-        
-      } catch {
-        // If we can't decode a packet, remove the first byte and try again
-        // This handles cases where we're in the middle of a packet or have corrupted data
-        if (this.dataBuffer.length > 1) {
-          this.dataBuffer = this.dataBuffer.slice(1);
-        } else {
-          // If only one byte left and it's not valid, clear the buffer
-          this.dataBuffer = new Uint8Array(0);
+        case 2:
+        default: // Fallback to inverter and reset counter for next cycle
+          packetPayload = { inverterData: generateMockInverterData() };
+          packetType = TelemetryPacket.DataType.DATA_TYPE_INVERTER;
+          this.simulationPacketTypeCounter = -1; // Will be incremented to 0
           break;
-        }
       }
-    }
 
-    // If we hit the iteration limit, something might be wrong
-    if (iterations >= maxIterations) {
-      console.warn('Hit maximum packet processing iterations, clearing buffer');
-      this.dataBuffer = new Uint8Array(0);
-    }
+      this.simulationPacketTypeCounter++;
+
+      const mockPacket: yorkfs.dashboard.ITelemetryPacket = {
+        type: packetType,
+        timestampMs: Date.now(),
+        payload: packetPayload // Spread operator removed as payload is already structured
+      };
+
+      useTelemetryStore.getState().updateTelemetryPacket(mockPacket);
+      // console.log(`Simulation: Sent mock ${TelemetryPacket.DataType[packetType]} packet`, mockPacket); // More descriptive log
+    }, 1000); // Send a packet every second
   }
 
   // AT Command Methods
@@ -256,121 +124,125 @@ export class SerialClient {
    * Enter AT command mode using the +++ sequence
    */
   async enterATMode(): Promise<boolean> {
-    if (!this.writer) {
-      throw new Error('No writer available');
-    }
+    // No actual "+++" sequence to send
+    console.log('Simulating: Entering AT mode');
+    this.isInATMode = true;
+    this.resetATModeTimeout(); // Keep timeout logic
 
-    try {
-      // Send +++ sequence to enter AT mode
-      const plusSequence = new TextEncoder().encode('+++');
-      await this.writer.write(plusSequence);
-      
-      // Wait for 1 second as required by SiK firmware
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      this.isInATMode = true;
-      
-      // Set timeout to automatically exit AT mode after 30 seconds of inactivity
-      this.resetATModeTimeout();
-      
-      return true;
-    } catch (error) {
-      console.error('Failed to enter AT mode:', error);
-      return false;
-    }
+    // Simulate a slight delay and "OK" response
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('atResponse', { detail: 'OK\r\n' }));
+    }, 100); // 100ms delay
+
+    return true;
   }
 
   /**
    * Exit AT command mode
    */
   async exitATMode(): Promise<void> {
-    if (!this.writer || !this.isInATMode) {
+    if (!this.isInATMode) {
       return;
     }
-
-    try {
-      // Send ATO command to exit AT mode
-      const atoCommand = new TextEncoder().encode('ATO\r\n');
-      await this.writer.write(atoCommand);
-      
-      this.isInATMode = false;
-      
-      if (this.atModeTimeout) {
-        clearTimeout(this.atModeTimeout);
-        this.atModeTimeout = null;
-      }
-    } catch (error) {
-      console.error('Failed to exit AT mode:', error);
+    console.log('Simulating: Exiting AT mode');
+    // No actual "ATO" command to send
+    this.isInATMode = false;
+    if (this.atModeTimeout) {
+      clearTimeout(this.atModeTimeout);
+      this.atModeTimeout = null;
     }
+    // Dispatch OK for ATO or implicit exit by timeout
+    window.dispatchEvent(new CustomEvent('atResponse', { detail: 'OK\r\n' }));
   }
 
   /**
    * Send an AT command and wait for response
    */
   async sendATCommand(command: string): Promise<string> {
-    if (!this.writer) {
-      throw new Error('No writer available');
-    }
+    command = command.trim().toUpperCase(); // Normalize command
+    let response = '';
+    let suppressResponseDispatch = false;
 
-    // Enter AT mode if not already in it
-    if (!this.isInATMode) {
-      const entered = await this.enterATMode();
+    console.log(`Simulating: Received AT command: ${command}`);
+
+    if (!this.isInATMode && command !== '+++') { // Allow "+++" to pass through to enterATMode logic
+      // Attempt to enter AT mode automatically if a command is sent.
+      const entered = await this.enterATMode(); // enterATMode will dispatch its own OK
       if (!entered) {
-        throw new Error('Failed to enter AT mode');
+        // Dispatch an error if auto-entry fails
+        window.dispatchEvent(new CustomEvent('atResponse', { detail: 'ERROR\r\n' }));
+        return Promise.reject(new Error('Failed to enter AT mode for simulation'));
       }
+      // Add a small delay to simulate mode change before command processing
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
 
-    // Reset the AT mode timeout
-    this.resetATModeTimeout();
+    this.resetATModeTimeout(); // Reset inactivity timer
 
-    return new Promise((resolve, reject) => {
-      let responseBuffer = '';
-      let responseTimeout: NodeJS.Timeout;
-      let responseDelayTimeout: NodeJS.Timeout;
-
-      const cleanup = () => {
-        window.removeEventListener('atResponse', handleATResponse as EventListener);
-        clearTimeout(responseTimeout);
-        clearTimeout(responseDelayTimeout);
-      };
-
-      // Set main timeout
-      responseTimeout = setTimeout(() => {
-        cleanup();
-        reject(new Error('AT command timeout'));
-      }, 5000);
-
-      // Listen for AT responses
-      const handleATResponse = (event: CustomEvent) => {
-        responseBuffer += event.detail;
-        
-        // Clear any existing delay timeout
-        clearTimeout(responseDelayTimeout);
-        
-        // Check for immediate completion indicators
-        if (responseBuffer.includes('OK\r\n') || 
-            responseBuffer.includes('ERROR\r\n')) {
-          cleanup();
-          resolve(responseBuffer.trim());
-          return;
+    // Command parsing and response generation
+    if (command === 'ATI') {
+      response = 'Mock Radio Firmware v1.0\r\nOK\r\n';
+    } else if (command === 'AT&V') {
+      let sRegsString = '';
+      this.mockSRegisters.forEach((value, key) => {
+        sRegsString += `S${key}:${value} `;
+      });
+      response = `${sRegsString.trim()}\r\nOK\r\n`;
+    } else if (command.startsWith('ATS') && command.endsWith('?')) { // ATSn?
+      const regNumMatch = command.match(/S(\d+)\?/);
+      if (regNumMatch && regNumMatch[1]) {
+        const regNum = parseInt(regNumMatch[1]);
+        if (this.mockSRegisters.has(regNum)) {
+          response = `${this.mockSRegisters.get(regNum)}\r\nOK\r\n`;
+        } else {
+          response = 'ERROR\r\n'; // Register not found
         }
-        
-        // For other responses, wait a short time to see if more data comes
-        responseDelayTimeout = setTimeout(() => {
-          if (responseBuffer.trim().length > 0) {
-            cleanup();
-            resolve(responseBuffer.trim());
-          }
-        }, 200); // Wait 200ms for more data
-      };
+      } else {
+        response = 'ERROR\r\n'; // Invalid format
+      }
+    } else if (command.startsWith('ATS') && command.includes('=')) { // ATSn=X
+      const regSetMatch = command.match(/S(\d+)=(\d+)/);
+      if (regSetMatch && regSetMatch[1] && regSetMatch[2]) {
+        const regNum = parseInt(regSetMatch[1]);
+        const regVal = parseInt(regSetMatch[2]);
+        // Basic validation for mock S-register values (0-255 for example)
+        if (regVal >= 0 && regVal <= 255) {
+            this.mockSRegisters.set(regNum, regVal);
+            response = 'OK\r\n';
+        } else {
+            response = 'ERROR\r\n'; // Value out of range
+        }
+      } else {
+        response = 'ERROR\r\n'; // Invalid format
+      }
+    } else if (command === 'ATO') { // Explicit exit
+      await this.exitATMode(); // this already sends OK
+      suppressResponseDispatch = true; // exitATMode handles the OK
+    } else if (command === 'ATZ') { // Reset
+      this.mockSRegisters.clear();
+      this.mockSRegisters.set(0,0).set(1,0).set(2,43).set(3,30).set(4,1).set(5,1); // Reset to defaults
+      response = 'OK\r\n';
+    } else if (command === '+++') { // "+++" sequence to enter AT mode
+        // If already in AT mode, it might just reset the timeout or do nothing.
+        // If not in AT mode, enterATMode should be called (handled by the check above)
+        // For now, assume if '+++' is sent explicitly, we ensure AT mode.
+        if (!this.isInATMode) {
+            await this.enterATMode(); // Dispatches its own OK
+        } else {
+             // Already in AT mode, radios might just respond with OK or nothing.
+             // Let's send OK for consistency of getting a response.
+            response = 'OK\r\n';
+        }
+        suppressResponseDispatch = command === '+++' && !this.isInATMode; // enterATMode dispatches OK
+    } else {
+      response = 'ERROR\r\n'; // Default for unknown commands
+    }
 
-      // Set up response listener
-      window.addEventListener('atResponse', handleATResponse as EventListener);
+    if (response && !suppressResponseDispatch) {
+       window.dispatchEvent(new CustomEvent('atResponse', { detail: response }));
+    }
 
-      // Send the command
-      const commandBytes = new TextEncoder().encode(command + '\r\n');
-      this.writer!.write(commandBytes).catch(reject);
-    });
+    return Promise.resolve(response.trim());
   }
 
   /**
@@ -413,7 +285,7 @@ export class SerialClient {
   /**
    * Get port information
    */
-  getPortInfo(): SerialPortInfo | null {
-    return this.port?.getInfo() || null;
-  }
+  // getPortInfo(): SerialPortInfo | null { // Removed as this.port is removed
+  //   return null;
+  // }
 } 

@@ -32,19 +32,10 @@ export default function DashboardPage() {
     
     setIsConnecting(true);
     try {
-      await serialClient.requestPort();
-      await serialClient.open();
-      
-      // Start reading telemetry data (don't await this as it's a continuous process)
-      serialClient.startReading((packet) => {
-        // Packet is automatically handled by the SerialClient and sent to the store
-        console.log('Received telemetry packet:', packet);
-      }).catch(error => {
-        console.error('Reading error:', error);
-      });
-      
+      await serialClient.startTelemetrySimulation();
     } catch (error) {
       console.error('Connection failed:', error);
+      // The store should be updated by SerialClient methods in case of error
     } finally {
       setIsConnecting(false);
     }
@@ -89,8 +80,9 @@ export default function DashboardPage() {
               <div className={`w-3 h-3 rounded-full ${getConnectionStatusColor()}`}></div>
               <span className="font-medium">{getConnectionStatusText()}</span>
             </div>
+            {/* Simulation mode indicators removed as it's the only mode now */}
             {lastError && (
-              <span className="text-red-500 text-sm">Error: {lastError}</span>
+              <span className="text-red-500 text-sm ml-2">Error: {lastError}</span>
             )}
           </div>
           
@@ -102,7 +94,7 @@ export default function DashboardPage() {
                 className="px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
                 style={{ backgroundColor: 'var(--accent)', color: 'white' }}
               >
-                {isConnecting ? 'Connecting...' : 'Connect to Radio'}
+                {isConnecting ? 'Connecting...' : 'Start Simulation'}
               </button>
             ) : (
               <button
