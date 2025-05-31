@@ -20,10 +20,9 @@ export default function DashboardPage() {
     
     // Cleanup function to close connection when component unmounts
     return () => {
-      delete window.serialClient;
-      if (serialClient.isConnected()) {
-        serialClient.close().catch(console.error);
-      }
+      // console.log("DashboardPage unmounting, but serialClient simulation will persist.");
+      // No longer deleting window.serialClient or closing connection here.
+      // This will be handled by the explicit "Disconnect" button.
     };
   }, [serialClient]);
 
