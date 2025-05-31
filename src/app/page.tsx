@@ -41,6 +41,7 @@ export default function DashboardPage() {
   };
 
   const handleDisconnect = async () => {
+    console.log('[DashboardPage] handleDisconnect called');
     try {
       await serialClient.close();
     } catch (error) {

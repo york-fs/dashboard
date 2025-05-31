@@ -18,14 +18,28 @@ export class SerialClient {
   private atModeTimeout: NodeJS.Timeout | null = null;
   private simulationIntervalId: NodeJS.Timeout | null = null;
   private simulationPacketTypeCounter = 0;
-  private mockSRegisters: Map<number, number> = new Map([
-    [0, 0],
-    [1, 0],
-    [2, 43],
-    [3, 30],
-    [4, 1],
-    [5, 1]
+
+  private static readonly FACTORY_DEFAULT_S_REGISTERS: ReadonlyMap<number, number> = new Map([
+    [0, 0],   // FORMAT
+    [1, 5],   // SERIAL_SPEED (baud rate index, e.g., 5 for 57600)
+    [2, 64],  // AIR_SPEED (kbps)
+    [3, 2],   // NETID
+    [4, 1],   // TXPOWER (e.g., 1 for 1dBm, up to 20 for 20dBm)
+    [5, 0],   // ECC (0 for off, 1 for on)
+    // Add other relevant S-registers as needed
   ]);
+
+  private mockSRegisters: Map<number, number> = new Map([
+    [0, 0],   // Current FORMAT different from factory to test AT&F
+    [1, 0],   // Current SERIAL_SPEED (baud rate index)
+    [2, 43],  // Current AIR_SPEED
+    [3, 30],  // Current NETID
+    [4, 1],   // Current TXPOWER
+    [5, 1]   // Current ECC (different from factory)
+  ]);
+
+  private rssiDebugEnabled: boolean = false;
+  private tdmDebugEnabled: boolean = false;
 
   constructor() {
     // Constructor is now simplified as Web Serial specific setup is removed.
@@ -51,11 +65,15 @@ export class SerialClient {
    * Simplified version of close().
    */
   async close(): Promise<void> {
+    console.log('[SerialClient] close() method called');
+    console.log('[SerialClient] Current simulationIntervalId before clear:', this.simulationIntervalId);
     console.log("Stopping telemetry simulation.");
     this.isReading = false;
 
     if (this.simulationIntervalId) {
+      const idToClear = this.simulationIntervalId; // Capture it before nulling
       clearInterval(this.simulationIntervalId);
+      console.log('[SerialClient] clearInterval was called for ID:', idToClear);
       this.simulationIntervalId = null;
     }
 
@@ -117,6 +135,7 @@ export class SerialClient {
       useTelemetryStore.getState().updateTelemetryPacket(mockPacket);
       // console.log(`Simulation: Sent mock ${TelemetryPacket.DataType[packetType]} packet`, mockPacket); // More descriptive log
     }, 1000); // Send a packet every second
+    console.log('[SerialClient] simulationIntervalId set to:', this.simulationIntervalId);
   }
 
   // AT Command Methods
@@ -183,6 +202,32 @@ export class SerialClient {
     // Command parsing and response generation
     if (command === 'ATI') {
       response = 'Mock Radio Firmware v1.0\r\nOK\r\n';
+    } else if (command === 'ATI2') {
+      response = 'Board Type: SiK Telemetry Radio v2.1\r\nOK\r\n';
+    } else if (command === 'ATI3') {
+      response = 'Board Frequency: 915MHz / Region: US\r\nOK\r\n';
+    } else if (command === 'ATI4') {
+      response = 'Board Version: HW:2.1 FW:1.9 (Simulated)\r\nOK\r\n';
+    } else if (command === 'ATI5') {
+      // Similar to AT&V, lists S-registers as mock EEPROM params for now
+      let sRegsString = 'Simulated EEPROM User Settings (S-Registers):\r\n';
+      this.mockSRegisters.forEach((value, key) => {
+        sRegsString += `S${key}: ${value}\r\n`;
+      });
+      response = `${sRegsString}OK\r\n`;
+    } else if (command === 'ATI6') {
+      response = 'Simulated TDM Timing Report:\r\n' +
+                 '  Mode: Master\r\n' +
+                 '  Slot Count: 4\r\n' +
+                 '  Turnaround: 500us\r\n' +
+                 'OK\r\n';
+    } else if (command === 'ATI7') {
+      response = 'Simulated RSSI Signal Report:\r\n' +
+                 `  Local RSSI: -${Math.floor(Math.random() * 30) + 40} dBm\r\n` + // Randomize slightly
+                 `  Remote RSSI: -${Math.floor(Math.random() * 30) + 45} dBm\r\n` +
+                 (this.rssiDebugEnabled ? '  RSSI Debug: ACTIVE\r\n' : '') +
+                 (this.tdmDebugEnabled ? '  TDM Debug: ACTIVE (Simulated)\r\n' : '') + // Added TDM debug info
+                 'OK\r\n';
     } else if (command === 'AT&V') {
       let sRegsString = '';
       this.mockSRegisters.forEach((value, key) => {
@@ -220,8 +265,30 @@ export class SerialClient {
       await this.exitATMode(); // this already sends OK
       suppressResponseDispatch = true; // exitATMode handles the OK
     } else if (command === 'ATZ') { // Reset
-      this.mockSRegisters.clear();
-      this.mockSRegisters.set(0,0).set(1,0).set(2,43).set(3,30).set(4,1).set(5,1); // Reset to defaults
+      console.log('[SerialClient Sim] ATZ: Rebooting radio, resetting S-registers to factory defaults.');
+      this.mockSRegisters = new Map(SerialClient.FACTORY_DEFAULT_S_REGISTERS);
+      response = 'OK\r\n';
+    } else if (command === 'AT&W') {
+      console.log('[SerialClient Sim] AT&W: Mock writing parameters to EEPROM.');
+      response = 'OK\r\n'; // Simulate write success
+    } else if (command === 'AT&F') {
+      console.log('[SerialClient Sim] AT&F: Resetting S-registers to factory defaults.');
+      this.mockSRegisters = new Map(SerialClient.FACTORY_DEFAULT_S_REGISTERS);
+      response = 'OK\r\n';
+    } else if (command === 'AT&T=RSSI') {
+      this.rssiDebugEnabled = true;
+      this.tdmDebugEnabled = false;
+      console.log('[SerialClient Sim] RSSI Debug Reporting Enabled.');
+      response = 'OK\r\n';
+    } else if (command === 'AT&T=TDM') {
+      this.tdmDebugEnabled = true;
+      this.rssiDebugEnabled = false;
+      console.log('[SerialClient Sim] TDM Debug Reporting Enabled.');
+      response = 'OK\r\n';
+    } else if (command === 'AT&T') {
+      this.rssiDebugEnabled = false;
+      this.tdmDebugEnabled = false;
+      console.log('[SerialClient Sim] All Debug Reporting Disabled.');
       response = 'OK\r\n';
     } else if (command === '+++') { // "+++" sequence to enter AT mode
         // If already in AT mode, it might just reset the timeout or do nothing.
