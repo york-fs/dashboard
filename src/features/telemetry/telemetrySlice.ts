@@ -40,6 +40,7 @@ export const useTelemetryStore = create<TelemetryState>((set) => ({
   
   // Actions
   updateTelemetryPacket: (packet: yorkfs.dashboard.ITelemetryPacket) => {
+    // console.log('[TelemetrySlice] Received packet:', JSON.parse(JSON.stringify(packet))); // Log a deep copy
     set((state) => {
       const updates: Partial<TelemetryState> = {
         latestPacket: packet,
@@ -60,6 +61,7 @@ export const useTelemetryStore = create<TelemetryState>((set) => ({
         updates.latestInverterData = packet.inverterData;
       }
       
+      // console.log('[TelemetrySlice] Prepared updates:', JSON.parse(JSON.stringify(updates))); // Log a deep copy
       return updates;
     });
   },

@@ -110,8 +110,9 @@ export class SerialClient {
       const mockPacket: yorkfs.dashboard.ITelemetryPacket = {
         type: packetType,
         timestampMs: Date.now(),
-        payload: packetPayload // Spread operator removed as payload is already structured
+        ...packetPayload // Ensure this uses the spread operator
       };
+      // console.log('[SerialClient] Generated mockPacket:', JSON.parse(JSON.stringify(mockPacket))); // Log a deep copy for inspection
 
       useTelemetryStore.getState().updateTelemetryPacket(mockPacket);
       // console.log(`Simulation: Sent mock ${TelemetryPacket.DataType[packetType]} packet`, mockPacket); // More descriptive log

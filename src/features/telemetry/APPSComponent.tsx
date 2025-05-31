@@ -18,6 +18,8 @@ export default function APPSComponent() {
   const lastPacketTime = useTelemetryStore(state => state.lastPacketTime);
   const isConnected = useTelemetryStore(state => state.isConnected);
 
+  // console.log('[APPSComponent] Received appsData:', appsData ? JSON.parse(JSON.stringify(appsData)) : null); // Log a deep copy if exists
+
   // Calculate how long ago we received data
   const dataAge = lastPacketTime ? Date.now() - lastPacketTime : null;
   const isDataStale = dataAge ? dataAge > 5000 : true; // Stale if older than 5 seconds

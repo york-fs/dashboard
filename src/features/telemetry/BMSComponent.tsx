@@ -15,6 +15,8 @@ export default function BMSComponent() {
   const lastPacketTime = useTelemetryStore(state => state.lastPacketTime);
   const isConnected = useTelemetryStore(state => state.isConnected);
 
+  // console.log('[BMSComponent] Received bmsData:', bmsData ? JSON.parse(JSON.stringify(bmsData)) : null);
+
   // Calculate how long ago we received data
   const dataAge = lastPacketTime ? Date.now() - lastPacketTime : null;
   const isDataStale = dataAge ? dataAge > 5000 : true; // Stale if older than 5 seconds

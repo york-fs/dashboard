@@ -22,6 +22,8 @@ export default function InverterComponent() {
   const lastPacketTime = useTelemetryStore(state => state.lastPacketTime);
   const isConnected = useTelemetryStore(state => state.isConnected);
 
+  // console.log('[InverterComponent] Received inverterData:', inverterData ? JSON.parse(JSON.stringify(inverterData)) : null);
+
   // Calculate how long ago we received data
   const dataAge = lastPacketTime ? Date.now() - lastPacketTime : null;
   const isDataStale = dataAge ? dataAge > 5000 : true; // Stale if older than 5 seconds
