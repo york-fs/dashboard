@@ -38,7 +38,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title = 'Electric Vehicle Das
       <footer className="border-t mt-12" style={{ backgroundColor: 'var(--background)', borderColor: 'var(--border)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="text-center text-sm" style={{ color: 'var(--foreground)' }}>
-            © 2024 Electric Vehicle Dashboard. Built with Next.js and TypeScript.
+            York Formula Student, 2025
           </div>
         </div>
       </footer>
