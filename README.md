@@ -15,7 +15,7 @@ A real-time telemetry dashboard for electric vehicles using Web Serial API, prot
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/york-fs/dashboard.git
 cd dashboard
 
 # Install dependencies
