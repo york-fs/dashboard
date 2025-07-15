@@ -1,14 +1,15 @@
-# Electric Car Dashboard 🏎️⚡
+# Dashboard
 
 A real-time telemetry dashboard for electric vehicles using Web Serial API, protobuf, and React. Displays live data from APPS (Accelerator Pedal Position), BMS (Battery Management System), and Inverter (Motor Controller) via SiK telemetry radios.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
 - **Browser**: Chrome or Edge (Web Serial API support required)
 - **Runtime**: [Bun](https://bun.sh/) (recommended) or Node.js 18+
 - **Hardware**: SiK telemetry radio connected via USB
+- **Optional**: To simulate how the program works when receiving data without the hardware of a car/emulator, you can use [Cleansend](https://github.com/york-fs/cleansend)
 
 ### Installation
 
@@ -26,18 +27,7 @@ bun run dev
 
 Visit `http://localhost:3000` to access the dashboard.
 
-## 📋 Table of Contents
-
-- [Features](#features)
-- [Architecture](#architecture)
-- [Hardware Setup](#hardware-setup)
-- [Usage Guide](#usage-guide)
-- [Development](#development)
-- [API Reference](#api-reference)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-
-## ✨ Features
+## Features
 
 ### Real-time Telemetry Display
 - **APPS Component**: Throttle position, motor current/RPM, status monitoring
@@ -63,7 +53,7 @@ Visit `http://localhost:3000` to access the dashboard.
 - Hot module reloading
 - Comprehensive testing tools
 
-## 🏗️ Architecture
+## Architecture
 
 ### System Overview
 
@@ -129,7 +119,7 @@ dashboard/
 - **BMSComponent**: Battery system monitoring
 - **InverterComponent**: Motor controller monitoring
 
-## 🔧 Hardware Setup
+## Hardware Setup
 
 ### SiK Telemetry Radio Configuration
 
@@ -154,7 +144,7 @@ sudo usermod -a -G dialout $USER
 sudo chmod 666 /dev/ttyUSB0
 ```
 
-## 📖 Usage Guide
+## Usage Guide
 
 ### Connecting to Telemetry
 
@@ -202,7 +192,7 @@ Visit `/test-serial` for detailed diagnostics:
 - Protobuf parsing verification
 - Text mode for debugging
 
-## 🛠️ Development
+## Development
 
 ### Development Setup
 
@@ -296,7 +286,7 @@ bun run lint
 - **Components**: Functional components with hooks
 - **State**: Zustand for global state, local state for UI
 
-## 📚 API Reference
+## API Reference
 
 ### SerialClient Class
 
@@ -354,7 +344,7 @@ See `src/protobuf/telemetry.proto` for complete message definitions:
 - `BMSData`: Battery management system
 - `InverterData`: Motor controller
 
-## 🔍 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -393,7 +383,7 @@ Enable detailed logging:
 localStorage.setItem('debug', 'serial:*');
 ```
 
-## 🤝 Contributing
+## Contributing
 
 ### Development Workflow
 
@@ -420,11 +410,11 @@ Include:
 - Error messages and console logs
 - Screenshots if applicable
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **Next.js** for the React framework
 - **Bun** for fast JavaScript runtime
@@ -435,4 +425,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Built with ❤️ for electric vehicle development**
