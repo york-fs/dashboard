@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ThemeToggle } from './ThemeToggle';
 
 interface LayoutProps {
@@ -16,7 +17,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title = 'Electric Vehicle Das
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
               <Link href="/" className="text-xl font-bold hover:opacity-80 transition-opacity" style={{ color: 'var(--foreground)' }}>
-                <img src="/yfs.png" alt="York Formula Student Logo" className="h-8 w-auto" />
+                <Image src="/yfs.png" alt="York Formula Student Logo" width={32} height={32} className="h-8 w-auto" />
               </Link>
             </div>
             <div className="flex items-center space-x-4">

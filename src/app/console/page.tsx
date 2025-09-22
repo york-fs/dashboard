@@ -14,7 +14,7 @@ export default function ConsolePage() {
 
   // Initialize SerialClient on component mount - use global one if available
   useEffect(() => {
-    const globalClient = (window as any).serialClient;
+    const globalClient = window.serialClient;
     if (globalClient) {
       setSerialClient(globalClient);
       setIsConnected(globalClient.isConnected());

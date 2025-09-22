@@ -325,20 +325,18 @@ export class SerialClient {
 
     return new Promise((resolve, reject) => {
       let responseBuffer = '';
-      let responseTimeout: NodeJS.Timeout;
       let responseDelayTimeout: NodeJS.Timeout;
 
-      const cleanup = () => {
-        window.removeEventListener('atResponse', handleATResponse as EventListener);
-        clearTimeout(responseTimeout);
-        clearTimeout(responseDelayTimeout);
-      };
-
-      // Set main timeout
-      responseTimeout = setTimeout(() => {
+      // Set main timeout that will automatically fire if not resolved
+      setTimeout(() => {
         cleanup();
         reject(new Error('AT command timeout'));
       }, 5000);
+
+      const cleanup = () => {
+        window.removeEventListener('atResponse', handleATResponse as EventListener);
+        clearTimeout(responseDelayTimeout);
+      };
 
       // Listen for AT responses
       const handleATResponse = (event: CustomEvent) => {

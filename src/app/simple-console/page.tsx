@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SerialClient } from '../../services/serialClient'; // Adjusted path
 
 export default function SimpleConsolePage() {
@@ -15,19 +15,6 @@ export default function SimpleConsolePage() {
     setSerialClient(new SerialClient());
   }, []);
 
-  // Listen for AT command responses
-  useEffect(() => {
-    const handleATResponse = (event: CustomEvent) => {
-      const response = event.detail;
-      setOutput(prev => prev + `Response: ${response}\n`);
-    };
-
-    // window.addEventListener('atResponse', handleATResponse as EventListener);
-    
-    return () => {
-      // window.removeEventListener('atResponse', handleATResponse as EventListener);
-    };
-  }, []);
 
   const handleConnect = async () => {
     if (!serialClient) {

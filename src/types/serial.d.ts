@@ -41,4 +41,8 @@ interface Serial {
 
 interface Navigator {
   serial: Serial;
+}
+
+interface Window {
+  serialClient?: import('../services/serialClient').SerialClient;
 } 
