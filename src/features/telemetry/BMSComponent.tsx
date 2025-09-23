@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useTelemetryStore } from './telemetrySlice';
+import { getShutdownColor, getCurrentColor, isDataStale } from '../../utils/telemetryHelpers';
 
 const SHUTDOWN_REASON_NAMES = {
   0: 'UNSPECIFIED',
@@ -17,19 +18,7 @@ export default function BMSComponent() {
 
   // Calculate how long ago we received data
   const dataAge = lastPacketTime ? Date.now() - lastPacketTime : null;
-  const isDataStale = dataAge ? dataAge > 5000 : true; // Stale if older than 5 seconds
-
-  const getShutdownColor = (isShutdown: boolean) => {
-    return isShutdown ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800';
-  };
-
-  const getCurrentColor = (current: number) => {
-    const absCurrent = Math.abs(current);
-    if (absCurrent < 10) return 'text-green-600'; // Low current
-    if (absCurrent < 50) return 'text-yellow-600'; // Medium current
-    if (absCurrent < 100) return 'text-orange-600'; // High current
-    return 'text-red-600'; // Very high current
-  };
+  const isDataStaleFlag = isDataStale(lastPacketTime);
 
   // Calculate total pack voltage from all segments
   const calculatePackVoltage = () => {
@@ -88,10 +77,10 @@ export default function BMSComponent() {
           </h2>
         </Link>
         <div className="flex items-center space-x-2">
-          <div className={`w-3 h-3 rounded-full ${isConnected && !isDataStale ? 'bg-green-500' : 'bg-red-500'}`}></div>
-          <span className="text-sm" style={{ color: 'var(--foreground)' }}>
-            {isConnected ? (isDataStale ? 'Stale' : 'Live') : 'Disconnected'}
-          </span>
+           <div className={`w-3 h-3 rounded-full ${isConnected && !isDataStaleFlag ? 'bg-green-500' : 'bg-red-500'}`}></div>
+           <span className="text-sm" style={{ color: 'var(--foreground)' }}>
+             {isConnected ? (isDataStaleFlag ? 'Stale' : 'Live') : 'Disconnected'}
+           </span>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useTelemetryStore } from './telemetrySlice';
+import { getStateColor, getThrottleColor, isDataStale } from '../../utils/telemetryHelpers';
 
 const APPS_STATE_NAMES = {
   0: 'IDLE',
@@ -20,25 +21,7 @@ export default function APPSComponent() {
 
   // Calculate how long ago we received data
   const dataAge = lastPacketTime ? Date.now() - lastPacketTime : null;
-  const isDataStale = dataAge ? dataAge > 5000 : true; // Stale if older than 5 seconds
-
-  const getStateColor = (state: number) => {
-    switch (state) {
-      case 0: return 'bg-gray-100 text-gray-800'; // IDLE
-      case 1: case 7: return 'bg-red-100 text-red-800'; // ERROR, FAULT
-      case 2: case 3: return 'bg-yellow-100 text-yellow-800'; // INITIALIZING, CALIBRATING
-      case 4: return 'bg-blue-100 text-blue-800'; // READY
-      case 5: case 6: return 'bg-green-100 text-green-800'; // ACTIVE, RUNNING
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getThrottleColor = (percentage: number) => {
-    if (percentage < 0.2) return 'bg-green-500';
-    if (percentage < 0.5) return 'bg-yellow-500';
-    if (percentage < 0.8) return 'bg-orange-500';
-    return 'bg-red-500';
-  };
+  const isDataStaleFlag = isDataStale(lastPacketTime);
 
   return (
     <div className="rounded-lg shadow-md p-6" style={{ backgroundColor: 'var(--background)', border: '1px solid var(--border)' }}>
@@ -49,10 +32,10 @@ export default function APPSComponent() {
           </h2>
         </Link>
         <div className="flex items-center space-x-2">
-          <div className={`w-3 h-3 rounded-full ${isConnected && !isDataStale ? 'bg-green-500' : 'bg-red-500'}`}></div>
-          <span className="text-sm" style={{ color: 'var(--foreground)' }}>
-            {isConnected ? (isDataStale ? 'Stale' : 'Live') : 'Disconnected'}
-          </span>
+           <div className={`w-3 h-3 rounded-full ${isConnected && !isDataStaleFlag ? 'bg-green-500' : 'bg-red-500'}`}></div>
+           <span className="text-sm" style={{ color: 'var(--foreground)' }}>
+             {isConnected ? (isDataStaleFlag ? 'Stale' : 'Live') : 'Disconnected'}
+           </span>
         </div>
       </div>
 
