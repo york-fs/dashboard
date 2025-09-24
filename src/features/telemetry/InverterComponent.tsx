@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useTelemetryStore } from './telemetrySlice';
+import { getFaultColor, getDutyCycleColor, getTemperatureColor, getCurrentColor, isDataStale } from '../../utils/telemetryHelpers';
 
 const FAULT_CODE_NAMES = {
   0: 'UNSPECIFIED',
@@ -24,37 +25,7 @@ export default function InverterComponent() {
 
   // Calculate how long ago we received data
   const dataAge = lastPacketTime ? Date.now() - lastPacketTime : null;
-  const isDataStale = dataAge ? dataAge > 5000 : true; // Stale if older than 5 seconds
-
-  const getFaultColor = (faultCode: number) => {
-    switch (faultCode) {
-      case 1: return 'bg-green-100 text-green-800'; // NO_FAULTS
-      case 0: return 'bg-gray-100 text-gray-800'; // UNSPECIFIED
-      default: return 'bg-red-100 text-red-800'; // Any fault
-    }
-  };
-
-  const getDutyCycleColor = (dutyCycle: number) => {
-    if (dutyCycle < 0.3) return 'bg-green-500';
-    if (dutyCycle < 0.6) return 'bg-yellow-500';
-    if (dutyCycle < 0.9) return 'bg-orange-500';
-    return 'bg-red-500';
-  };
-
-  const getTemperatureColor = (temp: number) => {
-    if (temp < 40) return 'text-green-600'; // Cool
-    if (temp < 70) return 'text-yellow-600'; // Warm
-    if (temp < 90) return 'text-orange-600'; // Hot
-    return 'text-red-600'; // Critical
-  };
-
-  const getCurrentColor = (current: number) => {
-    const absCurrent = Math.abs(current);
-    if (absCurrent < 20) return 'text-green-600'; // Low current
-    if (absCurrent < 50) return 'text-yellow-600'; // Medium current
-    if (absCurrent < 100) return 'text-orange-600'; // High current
-    return 'text-red-600'; // Very high current
-  };
+  const isDataStaleFlag = isDataStale(lastPacketTime);
 
   // Convert ERPM to actual RPM (typically ERPM = RPM * pole pairs)
   const calculateRPM = (erpm: number) => {
@@ -80,10 +51,10 @@ export default function InverterComponent() {
           </h2>
         </Link>
         <div className="flex items-center space-x-2">
-          <div className={`w-3 h-3 rounded-full ${isConnected && !isDataStale ? 'bg-green-500' : 'bg-red-500'}`}></div>
-          <span className="text-sm" style={{ color: 'var(--foreground)' }}>
-            {isConnected ? (isDataStale ? 'Stale' : 'Live') : 'Disconnected'}
-          </span>
+           <div className={`w-3 h-3 rounded-full ${isConnected && !isDataStaleFlag ? 'bg-green-500' : 'bg-red-500'}`}></div>
+           <span className="text-sm" style={{ color: 'var(--foreground)' }}>
+             {isConnected ? (isDataStaleFlag ? 'Stale' : 'Live') : 'Disconnected'}
+           </span>
         </div>
       </div>
 

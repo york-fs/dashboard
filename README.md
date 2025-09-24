@@ -395,20 +395,61 @@ localStorage.setItem('debug', 'serial:*');
 
 ### Code Standards
 
-- Follow TypeScript strict mode
-- Use functional components
-- Add JSDoc comments for public APIs
-- Test changes with real hardware when possible
-- Update documentation for new features
+- **TypeScript**: Strict mode enabled, use explicit types, avoid `any`
+- **Components**: Functional components with hooks, prefer `useState` and `useEffect`
+- **State Management**: Use Zustand for global state, local state for UI-specific logic
+- **Styling**: Tailwind CSS with custom CSS variables for theming
+- **Naming**: PascalCase for components, camelCase for functions/variables
+- **Imports**: Group imports (React, third-party, local) with empty lines
+- **Comments**: JSDoc for public APIs, inline comments for complex logic
+- **Testing**: Write unit tests for new components/services, aim for 80% coverage
+- **Documentation**: Update README and inline docs for new features
+
+### Adding New Telemetry Types
+
+1. **Update Protobuf Schema**:
+   ```protobuf
+   // Add to src/protobuf/telemetry.proto
+   message NewSensorData {
+     float value = 1;
+     uint32 timestamp = 2;
+   }
+   ```
+
+2. **Regenerate Types**:
+   ```bash
+   npx pbjs -t static-module -w es6 -o src/protobuf/telemetry_pb.js src/protobuf/telemetry.proto
+   npx pbts -o src/protobuf/telemetry_pb.d.ts src/protobuf/telemetry_pb.js
+   ```
+
+3. **Update State Management**:
+   ```typescript
+   // Add to src/features/telemetry/telemetrySlice.ts
+   latestNewSensorData: INewSensorData | null;
+   ```
+
+4. **Create Component**:
+   ```typescript
+   // Create src/features/telemetry/NewSensorComponent.tsx
+   const newSensorData = useTelemetryStore(state => state.latestNewSensorData);
+   ```
+
+5. **Add to Main Page**:
+   ```typescript
+   // Import and add to grid in src/app/page.tsx
+   import NewSensorComponent from '../features/telemetry/NewSensorComponent';
+   <NewSensorComponent />
+   ```
 
 ### Issue Reporting
 
 Include:
 - Browser version and OS
-- Hardware configuration
+- Hardware configuration (SiK radio model, USB setup)
 - Steps to reproduce
 - Error messages and console logs
 - Screenshots if applicable
+- Telemetry data samples if relevant
 
 ## License
 
